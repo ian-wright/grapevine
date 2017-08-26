@@ -6,7 +6,7 @@ application = Flask(__name__)
 
 @application.route('/')
 def hello_world():
-    dynamodb = boto3.resource('dynamodb')
+    dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
     user_table = dynamodb.Table('USERS')
 
     user_table.put_item(
