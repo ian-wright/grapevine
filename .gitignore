@@ -1,13 +1,21 @@
 # pyCharm
 .idea/
 
-* virtualenv
+# virtual env
 gv_venv/
+
+# local dynamo
+dynamodb_local_latest/
 
 # Elastic Beanstalk Files
 .elasticbeanstalk/*
 !.elasticbeanstalk/*.cfg.yml
 !.elasticbeanstalk/*.global.yml
 
-# aws
-aws_credentials.csv
+# note files
+*.txt
+*.csv
+
+# python3
+*.pyc
+*__pycache__*

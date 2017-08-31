@@ -1,34 +1,10 @@
-from flask import Flask
-import boto3
+""" required app entry point for AWS EB environment """
 
-application = Flask(__name__)
+import os
+from grapevine import create_app
 
+application = create_app(os.environ.get('APP_ENV', 'dev'))
 
-@application.route('/')
-def hello_world():
-    dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
-    user_table = dynamodb.Table('USERS')
-
-    user_table.put_item(
-        Item={
-            'user_id': '2',
-            'first_name': 'Joe',
-            'last_name': 'Smith',
-            'age': 15
-        }
-    )
-
-    response = user_table.get_item(
-        Key={
-            'user_id': '2'
-        }
-    )
-    print(response)
-    item = response['Item']
-    print(str(item))
-    return 'Hello World!' + str(item)
-
-
-if __name__ == '__main__':
-    application.debug = True
+if __name__ == "__main__":
+    # application.config["JSON_SORT_KEYS"] = False
     application.run()
