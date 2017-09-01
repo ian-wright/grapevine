@@ -1,5 +1,5 @@
 import boto3
-from grapevine.dynamo.dynamo_resource import DynamoResource
+from grapevine.dynamo.connection import DynamoResource
 
 
 # db = boto3.resource('dynamodb', endpoint_url='http://localhost:8000')

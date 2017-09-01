@@ -1,11 +1,11 @@
-from grapevine.dynamo.dynamo_resource import DynamoResource
 
+# TODO: write superclass for all db tables
 
 class Users:
-    """acts as singleton object to interface with DynamoDB user table"""
+    """singleton object is an abstracted representation of database user table"""
 
-    def __init__(self):
-        self.table = DynamoResource().resource.Table('USERS')
+    def __init__(self, resource):
+        self.table = resource.Table('USERS')
 
     def add(self, new_user):
         try:
