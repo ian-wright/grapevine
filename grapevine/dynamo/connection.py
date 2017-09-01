@@ -6,6 +6,8 @@ class DynamoConn:
     """top-level model to encapsulate a 'connection' to DynamoDB,
      and provide all related models and transactional methods to interface with
      DynamoDB tables
+
+     note that this abstraction is not used in the flask-security implemention for dynamoDB
      """
 
     def __init__(self, local=False):

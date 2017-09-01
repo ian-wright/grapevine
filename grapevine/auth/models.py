@@ -1,9 +1,8 @@
-import random
 
 
 class User:
 
-    def __init__(self, name, email):
-        self.name = name
+    def __init__(self, email, first_name, last_name):
         self.email = email
-        self.user_id = random.randint(0, 1000000)
+        self.first_name = first_name
+        self.last_name = last_name

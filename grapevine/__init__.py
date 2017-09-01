@@ -1,7 +1,6 @@
 """ All modules related to the application """
 
 from flask import Flask
-from grapevine.auth.views import user_manager
 import grapevine.config as cfg
 
 
@@ -25,7 +24,13 @@ def create_app(env):
     app.config.from_object(__CFG__[env])
 
     # register blueprints
+    from grapevine.auth.views import user_manager
     app.register_blueprint(user_manager, url_prefix='/users')
+
+    with app.app_context():
+        # instantiate dynamo object
+        from grapevine.dynamo_model import dynamo
+        dynamo.init_app(app)
 
     return app
 

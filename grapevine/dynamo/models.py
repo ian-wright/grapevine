@@ -3,28 +3,29 @@
 
 
 class Users:
-    """singleton object is an abstracted representation of database user table"""
+    """abstracted representation of database user table"""
 
-    def __init__(self, resource):
-        self.table = resource.Table('USERS')
+    def __init__(self, underlying_table):
+        self.table = underlying_table
 
     def add(self, new_user):
         try:
             self.table.put_item(
                 Item={
-                    'user_id': new_user.user_id,
-                    'name': new_user.name,
-                    'email': new_user.email
+                    'email': new_user.email,
+                    'first_name': new_user.first_name,
+                    'last_name': new_user.last_name
                 }
             )
             return True
+        # TODO: what kind of errors thrown here?
         except:
             return False
 
-    def get(self, user_id):
+    def get(self, email):
         user = self.table.get_item(
             Key={
-                'user_id': user_id
+                'email': email
             }
         )
         return user
