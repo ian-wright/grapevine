@@ -1,6 +1,7 @@
 
 # TODO: write superclass for all db tables
 
+
 class Users:
     """singleton object is an abstracted representation of database user table"""
 

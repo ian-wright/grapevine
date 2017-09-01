@@ -12,7 +12,7 @@ class DynamoConn:
         if local:
             self.resource = boto3.resource('dynamodb', endpoint_url='http://localhost:8000')
         else:
-            self.resource = boto3.resource('dynamodb')
+            self.resource = boto3.resource('dynamodb', region='us-east-1')
 
         self.user_table = Users(self.resource)
 
