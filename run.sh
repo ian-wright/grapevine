@@ -54,6 +54,7 @@ if [ ${MODE} == "dev" ]; then
         else
             export APP_ENV=loc
         fi
+        export FLASK_DEBUG=1
         export FLASK_APP=application.py
         echo "launching flask app locally..."
         flask run
@@ -64,6 +65,7 @@ if [ ${MODE} == "dev" ]; then
             eb setenv APP_ENV=awsdev
         fi
         echo "deploying last commit on current branch to EB dev..."
+        eb setenv FLASK_DEBUG=1
         eb deploy grapevine-dev
         eb open
     fi

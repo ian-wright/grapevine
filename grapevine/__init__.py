@@ -4,6 +4,7 @@ from flask import Flask
 import grapevine.config as cfg
 
 
+
 # TODO: integrate TravisCI configurations
 __CFG__ = {
     'loc': cfg.LocalConfig,
@@ -23,14 +24,32 @@ def create_app(env):
     app = Flask(__name__)
     app.config.from_object(__CFG__[env])
 
-    # register blueprints
-    from grapevine.auth.views import user_manager
-    app.register_blueprint(user_manager, url_prefix='/users')
+    from grapevine.extension_models import mail, security
+    mail.init_app(app)
 
+    # require an app context to initialize the dynamo extension
     with app.app_context():
-        # instantiate dynamo object
-        from grapevine.dynamo_model import dynamo
+        from grapevine.extension_models import dynamo
         dynamo.init_app(app)
+
+    # instantiate an abstract dynamo connector that sits on top of base extension object
+    from grapevine.dynamo.models import DynamoConn
+    from grapevine.security.models import User, Role, DynamoUserDatastore
+    db = DynamoConn(dynamo)
+    user_datastore = DynamoUserDatastore(db, User, Role)
+    security.init_app(app, user_datastore)
+
+    # register blueprints
+    # from grapevine.security.views import user_manager
+    # app.register_blueprint(user_manager, url_prefix='/users')
+    from grapevine.main.views import main
+    app.register_blueprint(main)
+
+    # TEMP TEST
+    # print("\nAVAILABLE RULES:\n")
+    # for rule in app.url_map.iter_rules():
+    #     print("url:", rule)
+    #     print("endpoint:", rule.endpoint, "\n")
 
     return app
 

@@ -1,9 +1,5 @@
 from flask import Blueprint, render_template
-from flask import current_app
-from flask_security import Security, UserMixin, RoleMixin, login_required
-from grapevine.auth.models import User
-from grapevine.dynamo.connection import DynamoConn
-from grapevine.dynamo.models import Users
+from grapevine.security.models import User
 
 
 user_manager = Blueprint('user_manager', __name__)
@@ -18,12 +14,7 @@ user_manager = Blueprint('user_manager', __name__)
 #         return DynamoConn()
 
 
-def get_table(table_name):
-    dynamo_extension = current_app.extensions['dynamo']
-    dynamo_table = dynamo_extension.tables[table_name]
 
-    if table_name == 'USERS':
-        return Users(dynamo_table)
 
     # add more table models here
 

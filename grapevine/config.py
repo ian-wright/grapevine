@@ -2,32 +2,57 @@
 
 
 class DefaultConfig:
+    # TODO: store an actual secret and random key in an env var
     SECRET_KEY = 'super-secret'
     DYNAMO_TABLES = [
         {
             'TableName': 'USERS',
             'KeySchema': [dict(AttributeName='email', KeyType='HASH')],
-            'AttributeDefinitions': [
-                dict(AttributeName='email', AttributeType='S')
-                # dict(AttributeName='first_name', AttributeType='S'),
-                # dict(AttributeName='last_name', AttributeType='S')
-            ],
-            'ProvisionedThroughput': dict(ReadCapacityUnits=5, WriteCapacityUnits=5)
-        }, {
+            'AttributeDefinitions': [dict(AttributeName='email', AttributeType='S')],
+            'ProvisionedThroughput': dict(ReadCapacityUnits=2, WriteCapacityUnits=2)
+        },
+        {
+            'TableName': 'ROLES',
+            'KeySchema': [dict(AttributeName='id', KeyType='HASH')],
+            'AttributeDefinitions': [dict(AttributeName='id', AttributeType='N')],
+            'ProvisionedThroughput': dict(ReadCapacityUnits=2, WriteCapacityUnits=2)
+        },
+        {
             'TableName': 'ARTICLES',
-            'KeySchema': [dict(AttributeName='URL', KeyType='HASH')],
-            'AttributeDefinitions': [
-                dict(AttributeName='URL', AttributeType='S')
-                # dict(AttributeName='share_count', AttributeType='N')
+            'KeySchema': [
+                dict(AttributeName='domain', KeyType='HASH'),
+                dict(AttributeName='id', KeyType='RANGE')
             ],
-            'ProvisionedThroughput': dict(ReadCapacityUnits=5, WriteCapacityUnits=5)
+            # TODO: read about proper range key usage (good for article table?)
+            'AttributeDefinitions': [
+                dict(AttributeName='domain', AttributeType='S'),
+                dict(AttributeName='id', AttributeType='S')
+            ],
+            'ProvisionedThroughput': dict(ReadCapacityUnits=2, WriteCapacityUnits=2)
         }
     ]
+    # flask-security config settings
+    SECURITY_CONFIRMABLE = True
+    SECURITY_REGISTERABLE = True
+    SECURITY_RECOVERABLE = True
+    SECURITY_TRACKABLE = True
+    SECURITY_CHANGEABLE = True
+    # TODO: store an actual salt and random key in an env var
+    SECURITY_PASSWORD_SALT = 'another-super-secret'
+
+    # flask-mail config settings
+
+    MAIL_SERVER = 'smtp.gmail.com'
+    MAIL_PORT = 465
+    MAIL_USE_SSL = True
+    MAIL_USERNAME = 'ian.f.t.wright@gmail.com'
+    MAIL_PASSWORD = 'xcjhwfhrwedwquay' # provided by google for app-specific access
+    SECURITY_EMAIL_SENDER = 'ian.f.t.wright@gmail.com'
 
 
 class LocalConfig(DefaultConfig):
-    """run locally"""
-    DEBUG = True
+    """loc: run locally"""
+    FLASK_DEBUG = True
     TESTING = False
     # LOCAL_DYNAMO = True
     DYNAMO_ENABLE_LOCAL = True
@@ -36,10 +61,10 @@ class LocalConfig(DefaultConfig):
 
 
 class LocalTestConfig(DefaultConfig):
-    """run locally:
+    """loctest: run locally:
     - testing mode
     """
-    DEBUG = True
+    FLASK_DEBUG = True
     TESTING = True
     # LOCAL_DYNAMO = True
     DYNAMO_ENABLE_LOCAL = True
@@ -48,8 +73,8 @@ class LocalTestConfig(DefaultConfig):
 
 
 class AWSDevConfig(DefaultConfig):
-    """deploy to AWS Staging instance"""
-    DEBUG = True
+    """awsdev: deploy to AWS Staging instance"""
+    FLASK_DEBUG = True
     TESTING = False
     # LOCAL_DYNAMO = False
     DYNAMO_ENABLE_LOCAL = False
@@ -57,10 +82,10 @@ class AWSDevConfig(DefaultConfig):
 
 
 class AWSDevTestConfig(DefaultConfig):
-    """deploy to AWS Staging instance:
+    """awsdevtest: deploy to AWS Staging instance:
     - testing mode
     """
-    DEBUG = True
+    FLASK_DEBUG = True
     TESTING = True
     # LOCAL_DYNAMO = False
     DYNAMO_ENABLE_LOCAL = False
@@ -68,8 +93,8 @@ class AWSDevTestConfig(DefaultConfig):
 
 
 class StagingConfig(DefaultConfig):
-    """deploy to AWS Staging instance"""
-    DEBUG = False
+    """stage: deploy to AWS Staging instance"""
+    FLASK_DEBUG = False
     TESTING = False
     # LOCAL_DYNAMO = False
     DYNAMO_ENABLE_LOCAL = False
@@ -77,8 +102,8 @@ class StagingConfig(DefaultConfig):
 
 
 class ProdConfig(DefaultConfig):
-    """deploy to AWS Production instance"""
-    DEBUG = False
+    """prod: deploy to AWS Production instance"""
+    FLASK_DEBUG = False
     TESTING = False
     # LOCAL_DYNAMO = False
     DYNAMO_ENABLE_LOCAL = False
