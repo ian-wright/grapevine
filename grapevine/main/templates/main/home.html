@@ -1,14 +1,4 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Grapevine</title>
-</head>
-<body>
-    <p>Grapevine SPA</p>
-    <p>Welcome {{ current_user.email }}!</p>
-    <form action="{{ url_for('main.home') }}" method="POST">
-        <button name="logout" value="logout">Logout</button>
-    </form>
-</body>
-</html>
+{% extends "main/base.html" %}
+{% block content %}
+    <div>This is child content!</div>
+{% endblock %}

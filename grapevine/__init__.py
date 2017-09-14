@@ -35,13 +35,18 @@ def create_app(env):
     # instantiate an abstract dynamo connector that sits on top of base extension object
     from grapevine.dynamo.models import DynamoConn
     from grapevine.security.models import User, Role, DynamoUserDatastore
+    from grapevine.form_override import RegisterFormWithNames, ConfirmRegisterFormWithNames
     db = DynamoConn(dynamo)
     user_datastore = DynamoUserDatastore(db, User, Role)
-    security.init_app(app, user_datastore)
+    security.init_app(
+        app,
+        user_datastore,
+        register_form=RegisterFormWithNames,
+        confirm_register_form=ConfirmRegisterFormWithNames
+    )
 
     # register blueprints
-    # from grapevine.security.views import user_manager
-    # app.register_blueprint(user_manager, url_prefix='/users')
+    # flask-security blueprint is registered upon initialization
     from grapevine.main.views import main
     app.register_blueprint(main)
 

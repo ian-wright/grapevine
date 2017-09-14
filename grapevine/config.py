@@ -39,6 +39,10 @@ class DefaultConfig:
     SECURITY_CHANGEABLE = True
     # TODO: store an actual salt and random key in an env var
     SECURITY_PASSWORD_SALT = 'another-super-secret'
+    SECURITY_CONFIRM_URL = '/account-confirm'
+
+    # custom endpoint for friend invite confirmation
+    SECURITY_CONFIRM_URL = '/friend-confirm'
 
     # flask-mail config settings
 

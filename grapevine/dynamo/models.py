@@ -1,10 +1,7 @@
-# if local:
-#     self.resource = boto3.resource('dynamodb', endpoint_url='http://localhost:8000')
-# else:
-#     self.resource = boto3.resource('dynamodb', region_name='us-east-1')
-
 from grapevine.security.models import User, Role
 from boto3.dynamodb.conditions import Attr
+from datetime import datetime
+import dateutil.parser
 
 
 class DynamoConn:
@@ -63,7 +60,7 @@ class BaseTable:
         self.table = underlying_dynamo_table
 
     @classmethod
-    def clean_attr_for_dynamo(cls, attr):
+    def convert_attr_to_dynamo(cls, attr):
         """Supported value types for dynamo tables are:
         STRING = 'S'
         NUMBER = 'N'
@@ -83,6 +80,29 @@ class BaseTable:
         :return: converted/cleaned attribute value
         """
 
+        # timestamp case
+        if isinstance(attr, datetime):
+            return attr.isoformat()
+        # all other cases
+        else:
+            return attr
+
+    @classmethod
+    def convert_attr_from_dynamo(cls, attr):
+        """Takes an dynamo-formatted attribute value as input,
+        and converts it to it's useful pythonic format.
+
+        :param attr: dynamo attribute value
+        :return: pythonic attribute value
+        """
+
+        try:
+            datetime_obj = dateutil.parser.parse(attr)
+            return datetime_obj
+        # TODO - this is probably bad practice to catch errors as flow control
+        except (ValueError, TypeError):
+            return attr
+
     def add(self, obj):
         """
 
@@ -91,7 +111,7 @@ class BaseTable:
         """
         new_item = {}
         for k, v in obj.__dict__.items():
-            new_item[k] = v
+            new_item[k] = self.convert_attr_to_dynamo(v)
 
         # try:
         #     self.table.put_item(Item=new_item)
@@ -113,26 +133,31 @@ class BaseTable:
                 attr_name1=attr_value1,
                 attr_name2=attr_value2,
                 ...
-        :return: dictionary of all returned item attributes
+        :return: dictionary of instance attributes for single returned item, or None if no match
         """
 
-        filter_list = [Attr(k).eq(v) for k, v in kwargs.items()]
+        filter_list = [Attr(k).eq(self.convert_attr_to_dynamo(v)) for k, v in kwargs.items()]
         filter_expression = filter_list.pop()
         for cond in filter_list:
             filter_expression &= cond
-        try:
+        # try:
+        #     response = self.table.scan(
+        #         # TODO: does this work?
+        #         FilterExpression=filter_expression
+        #     )
+        #     if 'Items' in response:
+        #         # assumes that the query is looking for a specific user (only one)
+        #         return {k: self.convert_attr_from_dynamo(v) for k, v in response['Items'][0].items()}
+        # except:
+        #     raise IOError("Couldn't scan {} on DynamoDB".format(filter_expression))
 
-            response = self.table.scan(
-                # TODO: does this work?
-                FilterExpression=filter_expression
-            )
-            if response['Items']:
-                # assumes that the query is looking for a specific user (only one)
-                return response['Items'][0]
-            else:
-                return False
-        except:
-            raise IOError("Couldn't scan {} on DynamoDB".format(filter_expression))
+        response = self.table.scan(
+            # TODO: does this work?
+            FilterExpression=filter_expression
+        )
+        if 'Items' in response:
+            # assumes that the query is looking for a specific user (only one)
+            return {k: self.convert_attr_from_dynamo(v) for k, v in response['Items'][0].items()}
 
 
 class UserTable(BaseTable):
@@ -142,18 +167,35 @@ class UserTable(BaseTable):
         Queries dynamo for a specific user.
 
         :param email: email string
-        :return: a User instance, or False for failure
+        :return: a User instance, or None if no match
         """
-        try:
-            response = self.table.get_item(
-                Key={
-                    'email': email
-                }
-            )
-            return User(attr_dict=response['Item'])
-        # TODO: error handling too broad
-        except:
-            return False
+        # try:
+        #     response = self.table.get_item(
+        #         Key={
+        #             'email': email
+        #         }
+        #     )
+        #     if response['Item']:
+        #         converted_response = {}
+        #         for k, v in response['Item'].items():
+        #             converted_response[k] = self.convert_attr_from_dynamo(v)
+        #
+        #         return User(attr_dict=converted_response)
+        # # TODO: error handling too broad
+        # except:
+        #     raise IOError("Couldn't get user: <{}> from DynamoDB".format(email))
+
+        response = self.table.get_item(
+            Key={
+                'email': email
+            }
+        )
+        if 'Item' in response:
+            converted_response = {}
+            for k, v in response['Item'].items():
+                converted_response[k] = self.convert_attr_from_dynamo(v)
+
+            return User(attr_dict=converted_response)
 
     def delete(self, email=None):
         """
@@ -187,7 +229,7 @@ class UserTable(BaseTable):
                 },
                 UpdateExpression='SET {} = :val1'.format(attr_name),
                 ExpressionAttributeValues={
-                    ':val1': attr_val
+                    ':val1': self.convert_attr_to_dynamo(attr_val)
                 }
             )
             return True
@@ -213,7 +255,7 @@ class RoleTable(BaseTable):
             return Role(attr_dict=response['Item'])
         # TODO: error handling too broad
         except:
-            return False
+            raise IOError("Couldn't get role: <{}> from DynamoDB".format(name))
 
     def delete(self, name=None):
         """

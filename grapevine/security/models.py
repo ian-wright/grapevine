@@ -94,8 +94,8 @@ class DynamoDatastore(Datastore):
         # TODO: is this true-false return paradigm for all the IO methods in dynamo and security models useful?
         if self.dynamo_conn.put_model(model):
             return model
-        # else:
-        #     return False
+        else:
+            return False
 
     def delete(self, model):
         """ delete an object from dynamoDB;
@@ -105,8 +105,8 @@ class DynamoDatastore(Datastore):
         """
         if self.dynamo_conn.delete_model(model):
             return True
-        # else:
-        #     return False
+        else:
+            return False
 
 
 class DynamoUserDatastore(DynamoDatastore, UserDatastore):
@@ -131,7 +131,7 @@ class DynamoUserDatastore(DynamoDatastore, UserDatastore):
         Fetches a user matching the specified email address, if exists.
 
         :param email: email string to search for
-        :return: instance of User class, if exists
+        :return: instance of User class, or None if no match
         """
         user = self.dynamo_conn.user_table.get(email=email)
         if user:
@@ -145,11 +145,18 @@ class DynamoUserDatastore(DynamoDatastore, UserDatastore):
                 attr_name1=attr_value1,
                 attr_name2=attr_value2,
                 ...
-        :return: instance of User class, if exists
+        :return: instance of User class, or False if no match
         """
-        user_attr_dict = self.dynamo_conn.user_table.scan(**kwargs)
-        if user_attr_dict:
-            return User(attr_dict=user_attr_dict)
+
+        # if kwargs only contains the primary ID (email), revert to more efficient get_user method
+        # if len(kwargs) == 1 and ('email' in kwargs or 'id' in kwargs):
+        if len(kwargs) == 1 and 'email' in kwargs:
+            return self.get_user(kwargs['email'])
+        # otherwise, scan the table for attribute value matches
+        else:
+            user_attr_dict = self.dynamo_conn.user_table.scan(**kwargs)
+            if user_attr_dict:
+                return User(attr_dict=user_attr_dict)
 
     def find_role(self, name):
         """
