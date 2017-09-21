@@ -20,7 +20,6 @@ class User(UserMixin):
     current_login_ip = None
     login_count = None
 
-
     def __init__(self, attr_dict=None, **kwargs):
         """
         :param kwargs: must include:
@@ -44,10 +43,6 @@ class User(UserMixin):
             'first_name': self.first_name,
             'last_name': self.last_name
         }
-
-    def friends(self):
-        # query db for list of friends
-        raise NotImplementedError
 
 
 class Role(RoleMixin):

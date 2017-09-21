@@ -1,6 +1,6 @@
 from grapevine.security.models import User, Role
 from grapevine.main.friends import Friendship
-from boto3.dynamodb.conditions import Attr
+from boto3.dynamodb.conditions import Attr, Key
 from datetime import datetime
 import dateutil.parser
 
@@ -269,7 +269,7 @@ class RoleTable(BaseTable):
         Deletes a specific role definition from dynamo.
 
         :param name: role name string
-        :return: True for success, or False for failure
+        :return: True, if successful
         """
         try:
             self.table.delete_item(
@@ -283,7 +283,87 @@ class RoleTable(BaseTable):
 
 
 class FriendTable(BaseTable):
+
     def list_friends(self, email):
+        """
+        Given an email id, get a list of confirmed friends
+        :param email: Any email id
+        :return: List of email ids for friends, or an empty list if no friends
+        """
         # query against primary hash, and GSI hash, build and return list of friends
-    try:
-        self.table.get_item
+        try:
+            primary_response = self.table.query(
+                KeyConditionExpression=Key('email_1').eq(email),
+                AttributesToGet=['email_2']
+            )
+            secondary_response = self.table.query(
+                IndexName='email_2-index',
+                KeyConditionExpression=Key('email_2').eq(email),
+                AttributesToGet=['email_1']
+            )
+            return primary_response + secondary_response
+        except:
+            raise IOError("Couldn't list friends for {}".format(email))
+
+    def is_friend(self, email_1, email_2):
+        """
+        Given an unsorted pair of email ids, check if a *confirmed* friendship record already exists
+        :param email_1: First email in pair
+        :param email_2: Second email in pair
+        :return: True or False
+        """
+        hash_key_email, range_key_email = sorted([email_1, email_2])
+        try:
+            response = self.table.get_item(
+                Key={
+                    'email_1': hash_key_email,
+                    'email_2': range_key_email
+                }
+            )
+            if response['Item']:
+                return True
+            else:
+                return False
+        except:
+            raise IOError("Couldn't determine if friendship exists for {} and {}".format(email_1, email_2))
+
+    def is_confirmed(self, email_1, email_2):
+        """
+        Given an unsorted pair of email ids, check if friendship has already been confirmed
+        :param email_1: First email in pair
+        :param email_2: Second email in pair
+        :return: True or False
+        """
+        hash_key_email, range_key_email = sorted([email_1, email_2])
+        try:
+            response = self.table.get_item(
+                Key={
+                    'email_1': hash_key_email,
+                    'email_2': range_key_email
+                }
+            )
+            if response['Item']:
+                if response['Item']['is_confirmed']:
+                    return True
+            return False
+        except:
+            raise IOError("Couldn't determine if friendship exists for {} and {}".format(email_1, email_2))
+
+    def delete(self, email_1, email_2):
+        """
+        Given an unsorted pair of email ids, remove the associated Friendship record from the table.
+        :param email_1: First email in pair
+        :param email_2: Second email in pair
+        :return: True, if successful
+        """
+        hash_key_email, range_key_email = sorted([email_1, email_2])
+        try:
+            self.table.delete_item(
+                Key={
+                    'email_1': hash_key_email,
+                    'email_2': range_key_email
+                }
+            )
+            return True
+        except:
+            raise IOError("Couldn't delete {} + {} Friendship from DynamoDB".format(email_1, email_2))
