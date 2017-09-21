@@ -20,6 +20,7 @@ if __name__ == '__main__':
 
         # reset schema
         print("destroying all tables...")
+        dynamo.create_all()
         dynamo.destroy_all()
 
         print("creating all tables...")

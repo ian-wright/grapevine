@@ -1,9 +1,8 @@
 """ All modules related to the application """
 
 from flask import Flask
+
 import grapevine.config as cfg
-
-
 
 # TODO: integrate TravisCI configurations
 __CFG__ = {
@@ -35,7 +34,7 @@ def create_app(env):
     # instantiate an abstract dynamo connector that sits on top of base extension object
     from grapevine.dynamo.models import DynamoConn
     from grapevine.security.models import User, Role, DynamoUserDatastore
-    from grapevine.form_override import RegisterFormWithNames, ConfirmRegisterFormWithNames
+    from grapevine.main.forms import RegisterFormWithNames, ConfirmRegisterFormWithNames
     db = DynamoConn(dynamo)
     user_datastore = DynamoUserDatastore(db, User, Role)
     security.init_app(

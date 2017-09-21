@@ -20,6 +20,7 @@ class User(UserMixin):
     current_login_ip = None
     login_count = None
 
+
     def __init__(self, attr_dict=None, **kwargs):
         """
         :param kwargs: must include:
@@ -33,7 +34,7 @@ class User(UserMixin):
         args = attr_dict or kwargs
         for k, v in args.items():
             setattr(self, k, v)
-        # flask-security needs a unique id, so email is used again
+        # flask-security needs a unique user ID, so email is used again
         self.id = args['email']
 
     # Custom User Payload
@@ -43,6 +44,10 @@ class User(UserMixin):
             'first_name': self.first_name,
             'last_name': self.last_name
         }
+
+    def friends(self):
+        # query db for list of friends
+        raise NotImplementedError
 
 
 class Role(RoleMixin):
@@ -120,7 +125,7 @@ class DynamoUserDatastore(DynamoDatastore, UserDatastore):
 
     def _prepare_role_modify_args(self, user, role):
         if isinstance(user, string_types):
-            # overridden to replace find_user with get_user (scan operations too expensive)
+            # overridden to replace find_user with get_user (dynamo scan operations too expensive)
             user = self.get_user(email=user)
         if isinstance(role, string_types):
             role = self.find_role(name=role)

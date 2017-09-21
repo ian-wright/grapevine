@@ -1,3 +1,4 @@
+{% from "security/_macros.html" import render_field_with_errors, render_field %}
 <!DOCTYPE html>
 <html lang="en">
     <head>
@@ -6,27 +7,41 @@
     <body>
         <div id="header">
             <p>Welcome to Grapevine, {{ current_user.first_name }}.</p>
-            <form name="new_friend" action="{{ url_for('main.home') }}" method="POST">
-{#                TODO - enable message flashing for missing email field#}
-                <input name="email" placeholder="my friend's email" size="30">
-                <button name="new_friend" value="new_friend">Add Friend</button>
+            <form>
+                <input id="add-friend-email" placeholder="friend's email" size="25">
+                <button type="button" id="add-friend-button">Add friend.</button>
             </form>
             <form name="logout" action="{{ url_for('main.home') }}" method="POST">
                 <button name="logout" value="logout">Logout</button>
             </form>
         </div>
         <hr>
-        <p>Message center:</p>
-        {% with messages = get_flashed_messages() %}
-            {% if messages %}
-                <ul class=flashes>
-                {% for message in messages %}
-                    <li>{{ message }}</li>
-                    {% endfor %}
-                </ul>
-            {% endif %}
-        {% endwith %}
+        <div>
+            <p>Message center:</p>
+            {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                    <ul class=flashes>
+                    {% for message in messages %}
+                        <li>{{ message }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            {% endwith %}
+            <p id="ajax-alerts"></p>
+        </div>
         <hr>
+        {# PLUGIN PAGE SPECIFIC CONTENT HERE #}
         {% block content %}{% endblock %}
     </body>
+    <script
+        src="https://code.jquery.com/jquery-3.2.1.min.js"
+        integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
+        crossorigin="anonymous"></script>
+    <script type="text/javascript" src="{{ url_for('main.static', filename='home.js') }}"></script>
+    <script>
+        (function() {
+            Friends.init();
+        })();
+    </script>
+
 </html>

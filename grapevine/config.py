@@ -18,6 +18,17 @@ class DefaultConfig:
             'ProvisionedThroughput': dict(ReadCapacityUnits=2, WriteCapacityUnits=2)
         },
         {
+            'TableName': 'FRIENDS',
+            'KeySchema': [dict(AttributeName='email_1', KeyType='HASH')],
+            'GlobalSecondaryIndexes': [dict(IndexName='email_2',
+                                            KeySchema=[dict(AttributeName='email_2', KeyType='HASH')],
+                                            Projection=dict(ProjectionType='ALL'),
+                                            ProvisionedThroughput=dict(ReadCapacityUnits=2, WriteCapacityUnits=2))],
+            'AttributeDefinitions': [dict(AttributeName='email_1', AttributeType='S'),
+                                     dict(AttributeName='email_2', AttributeType='S')],
+            'ProvisionedThroughput': dict(ReadCapacityUnits=2, WriteCapacityUnits=2)
+        },
+        {
             'TableName': 'ARTICLES',
             'KeySchema': [
                 dict(AttributeName='domain', KeyType='HASH'),
@@ -40,12 +51,13 @@ class DefaultConfig:
     # TODO: store an actual salt and random key in an env var
     SECURITY_PASSWORD_SALT = 'another-super-secret'
     SECURITY_CONFIRM_URL = '/account-confirm'
+    SECURITY_EMAIL_SUBJECT_CONFIRM = "Confirm your email to join Grapevine"
 
     # custom endpoint for friend invite confirmation
-    SECURITY_CONFIRM_URL = '/friend-confirm'
+    FRIEND_CONFIRM_URL = '/friend-confirm'
+    FRIEND_EMAIL_SUBJECT_CONFIRM = "{} wants to connect on Grapevine"
 
     # flask-mail config settings
-
     MAIL_SERVER = 'smtp.gmail.com'
     MAIL_PORT = 465
     MAIL_USE_SSL = True

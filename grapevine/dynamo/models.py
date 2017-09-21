@@ -1,4 +1,5 @@
 from grapevine.security.models import User, Role
+from grapevine.main.friends import Friendship
 from boto3.dynamodb.conditions import Attr
 from datetime import datetime
 import dateutil.parser
@@ -9,7 +10,7 @@ class DynamoConn:
      and provide all related models and transactional methods to interface with
      DynamoDB tables.
 
-     This simulates an ORM, in that any object that fits into the existing schema
+     This emulates an ORM, in that any object that fits into the existing schema
      can be created, deleted, updated, or retrieved.
 
      Use table attributes directly for add/get/delete/update with an object of known type.
@@ -19,8 +20,10 @@ class DynamoConn:
      """
 
     def __init__(self, db):
+        # DynamoConn attributes are the correct access point for all dynamo tables
         self.user_table = UserTable(db.tables['USERS'])
         self.role_table = RoleTable(db.tables['ROLES'])
+        self.friend_table = FriendTable(db.tables['FRIENDS'])
 
     def put_model(self, obj):
         """
@@ -36,6 +39,9 @@ class DynamoConn:
         elif isinstance(obj, Role):
             if self.role_table.add(obj):
                 return obj
+        elif isinstance(obj, Friendship):
+            if self.friend_table.add(obj):
+                return obj
         else:
             raise TypeError("Cant add model. No underlying DynamoDB table registered for type: \
             {}".format(type(obj)))
@@ -49,6 +55,8 @@ class DynamoConn:
             return self.user_table.delete(obj.email)
         elif isinstance(obj, Role):
             return self.role_table.delete(obj.name)
+        elif isinstance(obj, Friendship):
+            return self.friend_table.delete(obj.email_1)
         else:
             raise TypeError("Cant delete model. No underlying DynamoDB table registered for type: \
                         {}".format(type(obj)))
@@ -113,17 +121,17 @@ class BaseTable:
         for k, v in obj.__dict__.items():
             new_item[k] = self.convert_attr_to_dynamo(v)
 
-        # try:
-        #     self.table.put_item(Item=new_item)
-        #     print("added obj:", new_item)
-        #     return True
-        # # TODO: what kind of errors thrown here?
-        # except:
-        #     raise IOError("Couldn't write {} to DynamoDB".format(new_item))
+        try:
+            self.table.put_item(Item=new_item)
+            print("added obj:", new_item)
+            return True
+        # TODO: what kind of errors thrown here?
+        except:
+            raise IOError("Couldn't write {} to DynamoDB".format(new_item))
 
-        self.table.put_item(Item=new_item)
-        print("added obj:", new_item)
-        return True
+        # self.table.put_item(Item=new_item)
+        # print("added obj:", new_item)
+        # return True
 
     def scan(self, **kwargs):
         """
@@ -139,25 +147,24 @@ class BaseTable:
         filter_list = [Attr(k).eq(self.convert_attr_to_dynamo(v)) for k, v in kwargs.items()]
         filter_expression = filter_list.pop()
         for cond in filter_list:
-            filter_expression &= cond
-        # try:
-        #     response = self.table.scan(
-        #         # TODO: does this work?
-        #         FilterExpression=filter_expression
-        #     )
-        #     if 'Items' in response:
-        #         # assumes that the query is looking for a specific user (only one)
-        #         return {k: self.convert_attr_from_dynamo(v) for k, v in response['Items'][0].items()}
-        # except:
-        #     raise IOError("Couldn't scan {} on DynamoDB".format(filter_expression))
-
-        response = self.table.scan(
             # TODO: does this work?
-            FilterExpression=filter_expression
-        )
-        if 'Items' in response:
-            # assumes that the query is looking for a specific user (only one)
-            return {k: self.convert_attr_from_dynamo(v) for k, v in response['Items'][0].items()}
+            filter_expression &= cond
+        try:
+            response = self.table.scan(
+                FilterExpression=filter_expression
+            )
+            if 'Items' in response:
+                # assumes that the query is looking for a specific user (only one)
+                return {k: self.convert_attr_from_dynamo(v) for k, v in response['Items'][0].items()}
+        except:
+            raise IOError("Couldn't scan {} on DynamoDB".format(filter_expression))
+
+        # response = self.table.scan(
+        #     FilterExpression=filter_expression
+        # )
+        # if 'Items' in response:
+        #     # assumes that the query is looking for a specific user (only one)
+        #     return {k: self.convert_attr_from_dynamo(v) for k, v in response['Items'][0].items()}
 
 
 class UserTable(BaseTable):
@@ -169,33 +176,33 @@ class UserTable(BaseTable):
         :param email: email string
         :return: a User instance, or None if no match
         """
-        # try:
-        #     response = self.table.get_item(
-        #         Key={
-        #             'email': email
-        #         }
-        #     )
-        #     if response['Item']:
-        #         converted_response = {}
-        #         for k, v in response['Item'].items():
-        #             converted_response[k] = self.convert_attr_from_dynamo(v)
+        try:
+            response = self.table.get_item(
+                Key={
+                    'email': email
+                }
+            )
+            if response['Item']:
+                converted_response = {}
+                for k, v in response['Item'].items():
+                    converted_response[k] = self.convert_attr_from_dynamo(v)
+
+                return User(attr_dict=converted_response)
+        # TODO: error handling too broad
+        except:
+            raise IOError("Couldn't get user: <{}> from DynamoDB".format(email))
+
+        # response = self.table.get_item(
+        #     Key={
+        #         'email': email
+        #     }
+        # )
+        # if 'Item' in response:
+        #     converted_response = {}
+        #     for k, v in response['Item'].items():
+        #         converted_response[k] = self.convert_attr_from_dynamo(v)
         #
-        #         return User(attr_dict=converted_response)
-        # # TODO: error handling too broad
-        # except:
-        #     raise IOError("Couldn't get user: <{}> from DynamoDB".format(email))
-
-        response = self.table.get_item(
-            Key={
-                'email': email
-            }
-        )
-        if 'Item' in response:
-            converted_response = {}
-            for k, v in response['Item'].items():
-                converted_response[k] = self.convert_attr_from_dynamo(v)
-
-            return User(attr_dict=converted_response)
+        #     return User(attr_dict=converted_response)
 
     def delete(self, email=None):
         """
@@ -274,3 +281,9 @@ class RoleTable(BaseTable):
         except:
             raise IOError("Couldn't delete {} from DynamoDB".format(name))
 
+
+class FriendTable(BaseTable):
+    def list_friends(self, email):
+        # query against primary hash, and GSI hash, build and return list of friends
+    try:
+        self.table.get_item
