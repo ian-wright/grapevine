@@ -18,6 +18,7 @@
         <hr>
         <div>
             <p>Message center:</p>
+            {# flashed messages from flask server using flash() #}
             {% with messages = get_flashed_messages() %}
                 {% if messages %}
                     <ul class=flashes>
@@ -27,11 +28,30 @@
                     </ul>
                 {% endif %}
             {% endwith %}
+            {# messages returned via http response and rendered through JS #}
             <p id="ajax-alerts"></p>
         </div>
         <hr>
-        {# PLUGIN PAGE SPECIFIC CONTENT HERE #}
+
+        {# PENDING FRIEND REQUESTS #}
+        {% if pending_friends %}
+            <div>
+                <p>Pending friend requests:</p>
+                {% for friend_request in pending_friends %}
+                    {% set full_name = friend_request.first_name + ' ' + friend_request.last_name %}
+                    <div>
+                    {{ full_name }}
+                    <button type="button" id="confirm-friend-request-button">Confirm</button>
+                    <button type="button" id="delete-friend-request-button">Delete</button>
+                    </div>
+                {% endfor %}
+            </div>
+            <hr>
+        {% endif %}
+
+        {# PLUG IN PAGE SPECIFIC CONTENT HERE #}
         {% block content %}{% endblock %}
+
     </body>
     <script
         src="https://code.jquery.com/jquery-3.2.1.min.js"

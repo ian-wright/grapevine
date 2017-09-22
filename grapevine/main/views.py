@@ -4,7 +4,8 @@ from flask_security.utils import logout_user, hash_password
 from flask_security.core import current_user
 from werkzeug.local import LocalProxy
 from grapevine.dynamo.models import DynamoConn
-from grapevine.main.friends import send_friend_request_existing, send_app_friend_request, Friendship
+from grapevine.main.friends import send_friend_request_existing, send_app_friend_request, get_pending_requests, \
+    Friendship, confirm_pending_request, delete_pending_request
 # from grapevine.main.forms import InviteEmailForm, InviteUserEmailForm
 
 import datetime
@@ -21,10 +22,10 @@ _security = LocalProxy(lambda: current_app.extensions['security'])
 # user_datastore required for flask-security
 _user_datastore = LocalProxy(lambda: _security.datastore)
 
-main = Blueprint('main', __name__, template_folder='templates', static_folder='static', static_url_path='/main/static')
+main_bp = Blueprint('main', __name__, template_folder='templates', static_folder='static', static_url_path='/main/static')
 
 
-@main.before_app_first_request
+@main_bp.before_app_first_request
 def before_first_request():
 
     # Create any database tables that don't exist yet.
@@ -58,7 +59,7 @@ def before_first_request():
 
 
 # TODO - look into enabling token-based authentication with flask-security
-@main.route('/', methods=['POST', 'GET'])
+@main_bp.route('/', methods=['POST', 'GET'])
 @login_required
 def home():
     if request.method == 'POST' and 'logout' in request.form:
@@ -66,10 +67,12 @@ def home():
         logout_user()
         return redirect(url_for('security.login'))
 
-    return render_template('main/home.html')
+    pending_friends = get_pending_requests(current_user.email)
+    return render_template('main/home.html', pending_friends=pending_friends)
 
 
-@main.route('/add-friend', methods=['POST'])
+# TODO - consider breaking friend-stuff out into its own blueprint
+@main_bp.route('/add-friend', methods=['POST'])
 @login_required
 def add_friend():
     """
@@ -121,5 +124,16 @@ def add_friend():
 
     return user_message
 
+
+@main_bp.route('/confirm-friend-request', methods=['POST'])
+@login_required
+def confirm_friend_request():
+    confirm_pending_request()
+
+
+@main_bp.route('/delete-friend-request', methods=['POST'])
+@login_required
+def delete_friend_request():
+    delete_pending_request()
 
 

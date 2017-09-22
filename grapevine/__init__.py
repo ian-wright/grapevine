@@ -46,8 +46,8 @@ def create_app(env):
 
     # register blueprints
     # flask-security blueprint is registered upon initialization
-    from grapevine.main.views import main
-    app.register_blueprint(main)
+    from grapevine.main.views import main_bp
+    app.register_blueprint(main_bp)
 
     # TEMP TEST
     # print("\nAVAILABLE RULES:\n")
