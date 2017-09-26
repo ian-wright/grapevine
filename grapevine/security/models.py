@@ -147,11 +147,13 @@ class DynamoUserDatastore(DynamoDatastore, UserDatastore):
                 ...
         :return: instance of User class, or False if no match
         """
-
+        print("kwargslen", len(kwargs), kwargs)
         # if kwargs only contains the primary ID (email), revert to more efficient get_user method
         # if len(kwargs) == 1 and ('email' in kwargs or 'id' in kwargs):
         if len(kwargs) == 1 and 'email' in kwargs:
             return self.get_user(kwargs['email'])
+        elif len(kwargs) == 1 and 'id' in kwargs:
+            return self.get_user(kwargs['id'])
         # otherwise, scan the table for attribute value matches
         else:
             user_attr_dict = self.dynamo_conn.user_table.scan(**kwargs)

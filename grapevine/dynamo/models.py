@@ -159,12 +159,28 @@ class BaseTable:
         except:
             raise IOError("Couldn't scan {} on DynamoDB".format(filter_expression))
 
-        # response = self.table.scan(
-        #     FilterExpression=filter_expression
-        # )
-        # if 'Items' in response:
-        #     # assumes that the query is looking for a specific user (only one)
-        #     return {k: self.convert_attr_from_dynamo(v) for k, v in response['Items'][0].items()}
+    def response_to_object(self, response, class_type):
+        """
+        Builds an instance of given class from the dictionary returned by DynamoDB's get_item, if exists.
+        :param response: Dynamo response dict
+        :param class_type: Class type of output object (Role, User, ect)
+        :return: Instance of class type, if it exists
+        """
+        # get_item() case
+        if 'Item' in response:
+            converted_response = {}
+            for k, v in response['Item'].items():
+                converted_response[k] = self.convert_attr_from_dynamo(v)
+            print('converted response dict:', converted_response)
+            return class_type(**converted_response)
+
+        # query() case
+        if 'Items' in response:
+            converted_response = {}
+            for k, v in response['Items'][0].items():
+                converted_response[k] = self.convert_attr_from_dynamo(v)
+            print('converted response dict:', converted_response)
+            return class_type(**converted_response)
 
 
 class UserTable(BaseTable):
@@ -182,27 +198,10 @@ class UserTable(BaseTable):
                     'email': email
                 }
             )
-            if response['Item']:
-                converted_response = {}
-                for k, v in response['Item'].items():
-                    converted_response[k] = self.convert_attr_from_dynamo(v)
-
-                return User(attr_dict=converted_response)
+            return self.response_to_object(response, User)
         # TODO: error handling too broad
         except:
             raise IOError("Couldn't get user: <{}> from DynamoDB".format(email))
-
-        # response = self.table.get_item(
-        #     Key={
-        #         'email': email
-        #     }
-        # )
-        # if 'Item' in response:
-        #     converted_response = {}
-        #     for k, v in response['Item'].items():
-        #         converted_response[k] = self.convert_attr_from_dynamo(v)
-        #
-        #     return User(attr_dict=converted_response)
 
     def delete(self, email=None):
         """
@@ -259,7 +258,7 @@ class RoleTable(BaseTable):
                     'name': name
                 }
             )
-            return Role(attr_dict=response['Item'])
+            return self.response_to_object(response, Role)
         # TODO: error handling too broad
         except:
             raise IOError("Couldn't get role: <{}> from DynamoDB".format(name))
@@ -284,86 +283,141 @@ class RoleTable(BaseTable):
 
 class FriendTable(BaseTable):
 
-    def list_friends(self, email):
-        """
-        Given an email id, get a list of confirmed friends
-        :param email: Any email id
-        :return: List of email ids for friends, or an empty list if no friends
-        """
-        # query against primary hash, and GSI hash, build and return list of friends
-        try:
-            primary_response = self.table.query(
-                KeyConditionExpression=Key('email_1').eq(email),
-                AttributesToGet=['email_2']
-            )
-            secondary_response = self.table.query(
-                IndexName='email_2-index',
-                KeyConditionExpression=Key('email_2').eq(email),
-                AttributesToGet=['email_1']
-            )
-            return primary_response + secondary_response
-        except:
-            raise IOError("Couldn't list friends for {}".format(email))
+    @staticmethod
+    def _normalize_email_fields(response_item):
+        if 'sender_email' in response_item:
+            return response_item['sender_email']
+        if 'receiver_email' in response_item:
+            return response_item['receiver_email']
 
-    def is_friend(self, email_1, email_2):
+    def get_friendship(self, email_1, email_2):
         """
-        Given an unsorted pair of email ids, check if a *confirmed* friendship record already exists
+        Given a pair of email ids, return a Friendship instance, if exists
         :param email_1: First email in pair
         :param email_2: Second email in pair
-        :return: True or False
+        :return: Friendship instance, if it exists
         """
-        hash_key_email, range_key_email = sorted([email_1, email_2])
+        print("trying to get friendship for {} + {}".format(email_1, email_2))
         try:
-            response = self.table.get_item(
+            # try sender-receiver combo first (can use get_item on primary hash)
+            response_1 = self.table.get_item(
                 Key={
-                    'email_1': hash_key_email,
-                    'email_2': range_key_email
+                    'sender_email': email_1,
+                    'receiver_email': email_2
                 }
             )
-            if response['Item']:
-                return True
-            else:
-                return False
-        except:
-            raise IOError("Couldn't determine if friendship exists for {} and {}".format(email_1, email_2))
+            if 'Item' in response_1:
+                return self.response_to_object(response_1, Friendship)
 
-    def is_confirmed(self, email_1, email_2):
-        """
-        Given an unsorted pair of email ids, check if friendship has already been confirmed
-        :param email_1: First email in pair
-        :param email_2: Second email in pair
-        :return: True or False
-        """
-        hash_key_email, range_key_email = sorted([email_1, email_2])
-        try:
-            response = self.table.get_item(
-                Key={
-                    'email_1': hash_key_email,
-                    'email_2': range_key_email
-                }
+            # if that doesn't return anything, try receiver-sender combo (must use query on GSI)
+            response_2 = self.table.query(
+                IndexName='receiver-email-index',
+                ExpressionAttributeValues={':v1': email_1, ':v2': email_2},
+                KeyConditionExpression='receiver_email = :v1 AND sender_email = :v2'
             )
-            if response['Item']:
-                if response['Item']['is_confirmed']:
-                    return True
-            return False
-        except:
-            raise IOError("Couldn't determine if friendship exists for {} and {}".format(email_1, email_2))
+            if 'Items' in response_2 and len(response_2['Items']) == 1:
+                return self.response_to_object(response_2, Friendship)
+
+        except Exception as e:
+            print("Couldn't get friendship for {} and {}".format(email_1, email_2))
+            raise e
 
     def delete(self, email_1, email_2):
         """
         Given an unsorted pair of email ids, remove the associated Friendship record from the table.
         :param email_1: First email in pair
         :param email_2: Second email in pair
-        :return: True, if successful
+        :return: dict of attributes for deleted Friendship, if successful
         """
-        hash_key_email, range_key_email = sorted([email_1, email_2])
         try:
-            self.table.delete_item(
+            # try sender-receiver combo first
+            deleted_friendship_1 = self.table.delete_item(
                 Key={
-                    'email_1': hash_key_email,
-                    'email_2': range_key_email
-                }
+                    'sender_email': email_1,
+                    'receiver_email': email_2
+                },
+                ReturnValues='ALL_OLD'
             )
-            return True
-        except:
-            raise IOError("Couldn't delete {} + {} Friendship from DynamoDB".format(email_1, email_2))
+            if 'Attributes' in deleted_friendship_1:
+                return deleted_friendship_1
+
+            # if that doesn't return anything, try receiver-sender combo (on GSI)
+            deleted_friendship_2 = self.table.delete_item(
+                Key={
+                    'sender_email': email_2,
+                    'receiver_email': email_1
+                },
+                ReturnValues='ALL_OLD'
+            )
+            if 'Attributes' in deleted_friendship_2:
+                return deleted_friendship_2
+
+        except Exception as e:
+            print("Couldn't delete {} + {} Friendship from DynamoDB".format(email_1, email_2))
+            raise e
+
+    def list_confirmed_friends(self, email):
+        """
+        Given an email id, get a list of confirmed friends' emails (agnostic to who was sender vs receiver)
+        :param email: Any email id
+        :return: List of email ids for friends, or an empty list if no friends
+        """
+        try:
+            # query against primary hash, and GSI hash, build and return list of friends
+            sender_response = self.table.query(
+                ExpressionAttributeValues={':v1': email},
+                KeyConditionExpression='sender_email = :v1',
+                ProjectionExpression='receiver_email, confirmed_at'
+            )
+            receiver_response = self.table.query(
+                IndexName='receiver-email-index',
+                ExpressionAttributeValues={':v1': email},
+                KeyConditionExpression='receiver_email = :v1',
+                ProjectionExpression='sender_email, confirmed_at'
+            )
+            response = sender_response.get('Items', []) + receiver_response.get('Items', [])
+            confirmed_response = filter(lambda item: item['confirmed_at'] is not None, response)
+            return [self._normalize_email_fields(item) for item in confirmed_response]
+        except Exception as e:
+            print("Couldn't list confirmed friends for {}".format(email))
+            raise e
+
+    def list_pending_received_requests(self, receiver_email):
+        """
+        Given an email id for a receiving user, get a list of all pending friend requests (sender emails)
+        :param receiver_email: email for request-receiving user
+        :return: list of email ids for senders of pending requests
+        """
+        try:
+            receiver_response = self.table.query(
+                IndexName='receiver-email-index',
+                ExpressionAttributeValues={':v1': receiver_email},
+                KeyConditionExpression='receiver_email = :v1',
+                ProjectionExpression='sender_email, confirmed_at'
+            )
+            response = receiver_response.get('Items', [])
+            confirmed_response = filter(lambda item: item['confirmed_at'] is None, response)
+            return [self._normalize_email_fields(item) for item in confirmed_response]
+        except Exception as e:
+            print("Couldn't list pending requests sent to {}".format(receiver_email))
+            raise e
+
+    def list_pending_sent_requests(self, sender_email):
+        """
+        Given an email id for a sending user, get a list of all pending friend requests (receiver emails)
+        :param sender_email: email for request-sending user
+        :return: list of email ids for receivers of pending requests
+        """
+        try:
+            sender_response = self.table.query(
+                ExpressionAttributeValues={':v1': sender_email},
+                KeyConditionExpression='sender_email = :v1',
+                ProjectionExpression='receiver_email, confirmed_at'
+            )
+            response = sender_response.get('Items', [])
+            confirmed_response = filter(lambda item: item['confirmed_at'] is None, response)
+            return [self._normalize_email_fields(item) for item in confirmed_response]
+        except Exception as e:
+            print("Couldn't list pending requests sent by {}".format(sender_email))
+            raise e
+

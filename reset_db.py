@@ -10,7 +10,7 @@ if __name__ == '__main__':
     # local
     app.config.from_object(cfg.LocalConfig)
 
-    # aws dynamo
+    # AWS DynamoDB
     # app.config.from_object(cfg.AWSDevConfig)
 
     with app.app_context():

@@ -19,15 +19,15 @@ class DefaultConfig:
         },
         {
             'TableName': 'FRIENDS',
-            'KeySchema': [dict(AttributeName='email_1', KeyType='HASH'),
-                          dict(AttributeName='email_2', KeyType='RANGE')],
-            'GlobalSecondaryIndexes': [dict(IndexName='email_2-index',
-                                            KeySchema=[dict(AttributeName='email_2', KeyType='HASH'),
-                                                       dict(AttributeName='email_1', KeyType='RANGE')],
+            'KeySchema': [dict(AttributeName='sender_email', KeyType='HASH'),
+                          dict(AttributeName='receiver_email', KeyType='RANGE')],
+            'GlobalSecondaryIndexes': [dict(IndexName='receiver-email-index',
+                                            KeySchema=[dict(AttributeName='receiver_email', KeyType='HASH'),
+                                                       dict(AttributeName='sender_email', KeyType='RANGE')],
                                             Projection=dict(ProjectionType='ALL'),
                                             ProvisionedThroughput=dict(ReadCapacityUnits=2, WriteCapacityUnits=2))],
-            'AttributeDefinitions': [dict(AttributeName='email_1', AttributeType='S'),
-                                     dict(AttributeName='email_2', AttributeType='S')],
+            'AttributeDefinitions': [dict(AttributeName='sender_email', AttributeType='S'),
+                                     dict(AttributeName='receiver_email', AttributeType='S')],
             'ProvisionedThroughput': dict(ReadCapacityUnits=2, WriteCapacityUnits=2)
         },
         {
@@ -56,8 +56,9 @@ class DefaultConfig:
     SECURITY_EMAIL_SUBJECT_CONFIRM = "Confirm your email to join Grapevine"
 
     # custom endpoint for friend invite confirmation
-    FRIEND_CONFIRM_URL = '/friend-confirm'
-    FRIEND_EMAIL_SUBJECT_CONFIRM = "{} wants to connect on Grapevine"
+    # FRIEND_CONFIRM_URL = '/friend-confirm'
+    EMAIL_SUBJECT_FRIEND_REQUEST = "{} wants to connect on Grapevine"
+    EMAIL_SUBJECT_APP_REQUEST = "Sign up for Grapevine to share with {}"
 
     # flask-mail config settings
     MAIL_SERVER = 'smtp.gmail.com'
