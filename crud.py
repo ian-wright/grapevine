@@ -88,7 +88,3 @@ if __name__ == "__main__":
                     print("confirmed friendship: {} + {}".format(pdict['email_1'], pdict['email_2']))
                 else:
                     print("couldn't confirm friendship: {} + {}".format(pdict['email_1'], pdict['email_2']))
-
-
-
-

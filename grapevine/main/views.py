@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, current_app, jsonify
 from flask_security.decorators import login_required
 from flask_security.utils import logout_user, hash_password
 from flask_security.core import current_user
@@ -21,7 +21,7 @@ from validate_email import validate_email
 # # user_datastore required for flask-security
 # _user_datastore = LocalProxy(lambda: _security.datastore)
 
-main_bp = Blueprint('main', __name__, template_folder='templates', static_folder='static', static_url_path='/main/static')
+main_bp = Blueprint('main_bp', __name__, template_folder='templates', static_folder='static', static_url_path='/main/static')
 
 
 def get_connection(ctx):
@@ -46,36 +46,36 @@ def before_first_request():
         print('current app:', current_app)
         _dyn, _db, _friends, _userdata = get_connection(current_app)
 
-    # Create any database tables that don't exist yet.
-    # with current_app.app_context():
-    #     _dynamo = LocalProxy(lambda: current_app.extensions['dynamodb'])
-    #     _dynamo.create_all()
-    _dyn.create_all()
+        # Create any database tables that don't exist yet.
+        # with current_app.app_context():
+        #     _dynamo = LocalProxy(lambda: current_app.extensions['dynamodb'])
+        #     _dynamo.create_all()
+        _dyn.create_all()
 
-    # Create the admin role (royal) and end-user role (pleb), unless they already exist
-    _userdata.find_or_create_role(id=0, name='royal', description='administrator')
-    _userdata.find_or_create_role(id=1, name='pleb', description='end user')
+        # Create the admin role (royal) and end-user role (pleb), unless they already exist
+        _userdata.find_or_create_role(id=0, name='royal', description='administrator')
+        _userdata.find_or_create_role(id=1, name='pleb', description='end user')
 
-    # Create two Users for testing purposes, unless they already exist.
-    encrypted_password = hash_password('password')
-    if not _userdata.get_user('ian.f.t.wright@gmail.com'):
-        _userdata.create_user(
-            email='ian.f.t.wright@gmail.com',
-            password=encrypted_password,
-            first_name='Ian-Admin',
-            last_name='Wright'
-        )
-    if not _userdata.get_user('iw453@nyu.edu'):
-        _userdata.create_user(
-            email='iw453@nyu.edu',
-            password=encrypted_password,
-            first_name='Ian-User',
-            last_name='Wright'
-        )
+        # Create two Users for testing purposes, unless they already exist.
+        encrypted_password = hash_password('password')
+        if not _userdata.get_user('ian.f.t.wright@gmail.com'):
+            _userdata.create_user(
+                email='ian.f.t.wright@gmail.com',
+                password=encrypted_password,
+                first_name='Ian-Admin',
+                last_name='Wright'
+            )
+        if not _userdata.get_user('iw453@nyu.edu'):
+            _userdata.create_user(
+                email='iw453@nyu.edu',
+                password=encrypted_password,
+                first_name='Ian-User',
+                last_name='Wright'
+            )
 
-    # assign roles to users, if they're not already assigned
-    _userdata.add_role_to_user('iw453@nyu.edu', 'pleb')
-    _userdata.add_role_to_user('ian.f.t.wright@gmail.com', 'royal')
+        # assign roles to users, if they're not already assigned
+        _userdata.add_role_to_user('iw453@nyu.edu', 'pleb')
+        _userdata.add_role_to_user('ian.f.t.wright@gmail.com', 'royal')
 
 
 # TODO - look into enabling token-based authentication with flask-security
@@ -89,8 +89,13 @@ def home():
 
     _dyn, _db, _friends, _userdata = get_connection(current_app)
 
-    pending_friends = _friends.list_pending_requests(current_user.email)
-    return render_template('main/home.html', pending_friends=pending_friends)
+    pending_friends = _friends.list_pending_requests_users(current_user.email)
+    return render_template(
+        'main/home.html',
+        pending_friends=pending_friends,
+        current_user_dict=current_user.get_security_payload()
+
+    )
 
 
 # TODO - consider breaking friend-stuff out into its own blueprint
@@ -108,7 +113,7 @@ def add_friend():
     """
     _dyn, _db, _friends, _userdata = get_connection(current_app)
 
-    target_email = request.json['email']
+    target_email = request.json['target_email']
     target_user = _userdata.get_user(target_email)
 
     if target_user and _db.friend_table.get_friendship(current_user.email, target_email):

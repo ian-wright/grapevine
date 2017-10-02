@@ -171,7 +171,7 @@ class BaseTable:
             converted_response = {}
             for k, v in response['Item'].items():
                 converted_response[k] = self.convert_attr_from_dynamo(v)
-            print('converted response dict:', converted_response)
+            # print('converted response dict:', converted_response)
             return class_type(**converted_response)
 
         # query() case
@@ -179,7 +179,7 @@ class BaseTable:
             converted_response = {}
             for k, v in response['Items'][0].items():
                 converted_response[k] = self.convert_attr_from_dynamo(v)
-            print('converted response dict:', converted_response)
+            # print('converted response dict:', converted_response)
             return class_type(**converted_response)
 
 
@@ -396,7 +396,7 @@ class FriendTable(BaseTable):
                 ProjectionExpression='sender_email, confirmed_at'
             )
             response = receiver_response.get('Items', [])
-            confirmed_response = filter(lambda item: item['confirmed_at'] is None, response)
+            confirmed_response = filter(lambda item: 'confirmed_at' not in item, response)
             return [self._normalize_email_fields(item) for item in confirmed_response]
         except Exception as e:
             print("Couldn't list pending requests sent to {}".format(receiver_email))

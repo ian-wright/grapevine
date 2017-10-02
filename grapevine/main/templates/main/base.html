@@ -1,5 +1,4 @@
 {% from "security/_macros.html" import render_field_with_errors, render_field %}
-<!DOCTYPE html>
 <html lang="en">
     <head>
         <title>Grapevine</title>
@@ -11,12 +10,12 @@
                 <input id="add-friend-email" placeholder="friend's email" size="25">
                 <button type="button" id="add-friend-button">Add friend.</button>
             </form>
-            <form name="logout" action="{{ url_for('main.home') }}" method="POST">
+            <form name="logout" action="{{ url_for('main_bp.home') }}" method="POST">
                 <button name="logout" value="logout">Logout</button>
             </form>
         </div>
         <hr>
-        <div>
+        <div id="message-center">
             <p>Message center:</p>
             {# flashed messages from flask server using flash() #}
             {% with messages = get_flashed_messages() %}
@@ -32,10 +31,9 @@
             <p id="ajax-alerts"></p>
         </div>
         <hr>
-
         {# PENDING FRIEND REQUESTS #}
         {% if pending_friends %}
-            <div>
+            <div id="friend-requests">
                 <p>Pending friend requests:</p>
                 {% for friend_request in pending_friends %}
                     {% set full_name = friend_request.first_name + ' ' + friend_request.last_name %}
@@ -57,10 +55,10 @@
         src="https://code.jquery.com/jquery-3.2.1.min.js"
         integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
         crossorigin="anonymous"></script>
-    <script type="text/javascript" src="{{ url_for('main.static', filename='home.js') }}"></script>
+    <script type="text/javascript" src="{{ url_for('main_bp.static', filename='friends.js') }}"></script>
     <script>
         (function() {
-            Friends.init();
+            Friends.init({{ current_user_dict|tojson }});
         })();
     </script>
 

@@ -58,7 +58,7 @@ class FriendManager:
         )
         self._db.put_model(new_friendship)
 
-        email_subject = config_value('EMAIL_SUBJECT_FRIEND_REQUEST')
+        email_subject = current_app.config['EMAIL_SUBJECT_FRIEND_REQUEST']
         print('email sub:', email_subject)
         email_subject = email_subject.format(sender_user.first_name)
         print('email sub:', email_subject)
@@ -67,7 +67,7 @@ class FriendManager:
             receiver_email,
             'friend_request_existing_user',
             user=sender_user,
-            confirmation_link=url_for('main_bp.home')
+            login_link=url_for('main_bp.home')
         )
         return True
 
@@ -80,7 +80,7 @@ class FriendManager:
     def confirm_pending_request(self, email_1, email_2):
         friendship_to_confirm = self._db.friend_table.get_friendship(email_1, email_2)
         print("friendship_to_confirm", vars(friendship_to_confirm))
-        return self._db.put_model(friendship_to_confirm.confirm())
+
 
         # TODO:
         # add a confirmed_at timestamp to the record in the db
@@ -95,15 +95,29 @@ class FriendManager:
         # flash a message in the message center
         # write a callback in JS to remove the element from the DOM
 
-    def list_pending_requests(self, email):
+    # def _email_to_userdict(self, email):
+    #     """
+    #     NOTE that this method returns {email, first_name, last_name} dicts, NOT actual User objects
+    #     :param email: Any existing email id
+    #     :return: dict object with {email, first_name, last_name}
+    #     """
+    #     user = self._db.user_table.get(email)
+    #     # return {
+    #     #     'email': user.email,
+    #     #     'first_name': user.first_name,
+    #     #     'last_name': user.last_name
+    #     # }
+    #     return user.get_security_payload()
+
+    def list_pending_requests_users(self, email):
         """
         Given the logged in users email id, get a list of {first_name, last_name, email}
         dict objects for each pending friend request.
         :param email: current user's email
         :return: list of dicts, or None if no requests
         """
-        # TODO - awkward to have such heavy functionality on the ORM side... could move methods to this manager
-        return self._db.friend_table.list_pending_received_requests(email)
+        requester_emails = self._db.friend_table.list_pending_received_requests(email)
+        return map(lambda e: self._db.user_table.get(e).get_security_payload(), requester_emails)
 
 
 # TODO - should friend invite tokens expire? For now - not using any tokens for friend requests
