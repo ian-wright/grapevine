@@ -13,8 +13,8 @@ class DefaultConfig:
         },
         {
             'TableName': 'ROLES',
-            'KeySchema': [dict(AttributeName='id', KeyType='HASH')],
-            'AttributeDefinitions': [dict(AttributeName='id', AttributeType='N')],
+            'KeySchema': [dict(AttributeName='name', KeyType='HASH')],
+            'AttributeDefinitions': [dict(AttributeName='name', AttributeType='S')],
             'ProvisionedThroughput': dict(ReadCapacityUnits=2, WriteCapacityUnits=2)
         },
         {
@@ -53,12 +53,20 @@ class DefaultConfig:
     # TODO: store an actual salt and random key in an env var
     SECURITY_PASSWORD_SALT = 'another-super-secret'
     SECURITY_CONFIRM_URL = '/account-confirm'
-    SECURITY_EMAIL_SUBJECT_CONFIRM = "Confirm your email to join Grapevine"
+    SECURITY_EMAIL_PLAINTEXT = False
+    SECURITY_BLUEPRINT_NAME = 'security_bp'
+    SECURITY_PASSWORD_HASH = 'sha512_crypt'
 
     # custom endpoint for friend invite confirmation
     # FRIEND_CONFIRM_URL = '/friend-confirm'
+    SECURITY_EMAIL_SUBJECT_CONFIRM = "Confirm your email to join Grapevine"
     EMAIL_SUBJECT_FRIEND_REQUEST = "{} wants to connect on Grapevine"
+    EMAIL_SUBJECT_FRIEND_CONFIRM = "You're now connected with {} on Grapevine"
+    EMAIL_SUBJECT_FRIEND_REJECT = "{} doesn't seem to like you"
     EMAIL_SUBJECT_APP_REQUEST = "Sign up for Grapevine to share with {}"
+
+    WTF_CSRF_ENABLED = False
+    SECURITY_TOKEN_AUTHENTICATION_HEADER = 'auth-token'
 
     # flask-mail config settings
     MAIL_SERVER = 'smtp.gmail.com'
@@ -68,12 +76,13 @@ class DefaultConfig:
     MAIL_PASSWORD = 'xcjhwfhrwedwquay' # provided by google for app-specific access
     SECURITY_EMAIL_SENDER = 'ian.f.t.wright@gmail.com'
 
+    REACT_STATIC_FOLDER = ''
+
 
 class LocalConfig(DefaultConfig):
     """loc: run locally"""
     FLASK_DEBUG = True
     TESTING = False
-    # LOCAL_DYNAMO = True
     DYNAMO_ENABLE_LOCAL = True
     DYNAMO_LOCAL_HOST = 'localhost'
     DYNAMO_LOCAL_PORT = 8000
@@ -83,9 +92,9 @@ class LocalTestConfig(DefaultConfig):
     """loctest: run locally:
     - testing mode
     """
-    FLASK_DEBUG = True
+    FLASK_DEBUG = False
     TESTING = True
-    # LOCAL_DYNAMO = True
+    LOGIN_DISABLED = False
     DYNAMO_ENABLE_LOCAL = True
     DYNAMO_LOCAL_HOST = 'localhost'
     DYNAMO_LOCAL_PORT = 8000
@@ -95,7 +104,6 @@ class AWSDevConfig(DefaultConfig):
     """awsdev: deploy to AWS Staging instance"""
     FLASK_DEBUG = True
     TESTING = False
-    # LOCAL_DYNAMO = False
     DYNAMO_ENABLE_LOCAL = False
     AWS_REGION = 'us-east-1'
 
@@ -104,9 +112,9 @@ class AWSDevTestConfig(DefaultConfig):
     """awsdevtest: deploy to AWS Staging instance:
     - testing mode
     """
-    FLASK_DEBUG = True
+    FLASK_DEBUG = False
     TESTING = True
-    # LOCAL_DYNAMO = False
+    LOGIN_DISABLED = False
     DYNAMO_ENABLE_LOCAL = False
     AWS_REGION = 'us-east-1'
 
@@ -115,7 +123,6 @@ class StagingConfig(DefaultConfig):
     """stage: deploy to AWS Staging instance"""
     FLASK_DEBUG = False
     TESTING = False
-    # LOCAL_DYNAMO = False
     DYNAMO_ENABLE_LOCAL = False
     AWS_REGION = 'us-east-1'
 
@@ -124,6 +131,5 @@ class ProdConfig(DefaultConfig):
     """prod: deploy to AWS Production instance"""
     FLASK_DEBUG = False
     TESTING = False
-    # LOCAL_DYNAMO = False
     DYNAMO_ENABLE_LOCAL = False
     AWS_REGION = 'us-east-1'

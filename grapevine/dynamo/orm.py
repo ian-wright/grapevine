@@ -1,8 +1,10 @@
-from grapevine.security.models import User, Role
-from grapevine.main.friends import Friendship
-from boto3.dynamodb.conditions import Attr, Key
 from datetime import datetime
+
 import dateutil.parser
+from boto3.dynamodb.conditions import Attr
+
+from grapevine.friends.friends import Friendship
+from grapevine.security.models import User, Role
 
 
 class DynamoConn:
@@ -21,9 +23,16 @@ class DynamoConn:
 
     def __init__(self, db):
         # DynamoConn attributes are the correct access point for all dynamo tables
-        self.user_table = UserTable(db.tables['USERS'])
         self.role_table = RoleTable(db.tables['ROLES'])
+        self.user_table = UserTable(db.tables['USERS'], self.role_table)
         self.friend_table = FriendTable(db.tables['FRIENDS'])
+
+    @staticmethod
+    def _role_object_to_str(role):
+        if isinstance(role, Role):
+            return role.name
+        else:
+            return role
 
     def put_model(self, obj):
         """
@@ -34,6 +43,9 @@ class DynamoConn:
         """
 
         if isinstance(obj, User):
+            # convert list of role objects back to role name strings
+            # obj.roles = [role.name for role in obj.roles]
+            obj.roles = list(map(self._role_object_to_str, obj.roles))
             if self.user_table.add(obj):
                 return obj
         elif isinstance(obj, Role):
@@ -62,7 +74,7 @@ class DynamoConn:
                         {}".format(type(obj)))
 
 
-class BaseTable:
+class BaseTable(object):
     """abstract representation of a table in dynamoDB"""
     def __init__(self, underlying_dynamo_table):
         self.table = underlying_dynamo_table
@@ -87,7 +99,6 @@ class BaseTable:
         :param attr: raw attribute value
         :return: converted/cleaned attribute value
         """
-
         # timestamp case
         if isinstance(attr, datetime):
             return attr.isoformat()
@@ -103,7 +114,6 @@ class BaseTable:
         :param attr: dynamo attribute value
         :return: pythonic attribute value
         """
-
         try:
             datetime_obj = dateutil.parser.parse(attr)
             return datetime_obj
@@ -129,10 +139,6 @@ class BaseTable:
         except:
             raise IOError("Couldn't write {} to DynamoDB".format(new_item))
 
-        # self.table.put_item(Item=new_item)
-        # print("added obj:", new_item)
-        # return True
-
     def scan(self, **kwargs):
         """
         Performs an attribute scan over underlying table using specified params.
@@ -143,11 +149,11 @@ class BaseTable:
                 ...
         :return: dictionary of instance attributes for single returned item, or None if no match
         """
-
+        # TODO: tests this method! for user objects, must convert role list from strings to role objects
         filter_list = [Attr(k).eq(self.convert_attr_to_dynamo(v)) for k, v in kwargs.items()]
         filter_expression = filter_list.pop()
         for cond in filter_list:
-            # TODO: does this work?
+
             filter_expression &= cond
         try:
             response = self.table.scan(
@@ -185,6 +191,23 @@ class BaseTable:
 
 class UserTable(BaseTable):
 
+    def __init__(self, underlying_dynamo_table, role_table_model):
+        super().__init__(underlying_dynamo_table)
+        self.role_table_model = role_table_model
+
+    def _role_str_to_obj(self, role):
+        if isinstance(role, Role):
+            return role
+        else:
+            return self.role_table_model.get(role)
+
+    def _objectify_role_strings(self, user):
+        # convert the user's list of assigned roles from role name strings to real user objects
+        if len(user.roles) > 0:
+            user.roles = list(map(self._role_str_to_obj, user.roles))
+            return user
+        return user
+
     def get(self, email=None):
         """
         Queries dynamo for a specific user.
@@ -198,8 +221,11 @@ class UserTable(BaseTable):
                     'email': email
                 }
             )
-            return self.response_to_object(response, User)
-        # TODO: error handling too broad
+
+            user = self.response_to_object(response, User)
+            if user:
+                return self._objectify_role_strings(user)
+        # placeholder for more effective error handling
         except:
             raise IOError("Couldn't get user: <{}> from DynamoDB".format(email))
 
@@ -228,6 +254,7 @@ class UserTable(BaseTable):
         :param attr_val: new attribute value
         :return: True for success, or False for failure
         """
+        # TODO: tests this method! be aware of role string-object conversion
         try:
             self.table.update_item(
                 Key={
@@ -339,7 +366,7 @@ class FriendTable(BaseTable):
                 ReturnValues='ALL_OLD'
             )
             if 'Attributes' in deleted_friendship_1:
-                return deleted_friendship_1
+                return self.response_to_object(deleted_friendship_1['Attributes'], Friendship)
 
             # if that doesn't return anything, try receiver-sender combo (on GSI)
             deleted_friendship_2 = self.table.delete_item(
@@ -350,7 +377,7 @@ class FriendTable(BaseTable):
                 ReturnValues='ALL_OLD'
             )
             if 'Attributes' in deleted_friendship_2:
-                return deleted_friendship_2
+                return self.response_to_object(deleted_friendship_2['Attributes'], Friendship)
 
         except Exception as e:
             print("Couldn't delete {} + {} Friendship from DynamoDB".format(email_1, email_2))

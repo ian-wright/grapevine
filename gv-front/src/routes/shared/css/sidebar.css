@@ -1,0 +1,26 @@
+.Sidebar-button {
+	height: 100px;
+}
+
+.Sidebar-button-container {
+	position: absolute;
+	bottom: 0;
+	width: 100px;
+}
+
+.Sidebar-active {
+	background-color: green;
+}
+
+.Sidebar-inactive {
+	background-color: red;
+}
+
+.Sidebar {
+	position: fixed;
+	left: 0;
+	top: 0;
+	bottom: 0;
+	width: 100px;
+	background-color: grey; 
+}

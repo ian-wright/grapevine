@@ -1,12 +1,13 @@
 
-from grapevine import create_app
-from grapevine.main.views import get_connection
-from grapevine.main.friends import Friendship
-from flask_security.utils import hash_password
 import argparse
-import json
 import datetime
+import json
 
+from flask_security.utils import hash_password
+
+from grapevine import create_app
+from grapevine.friends.friends import Friendship
+from grapevine.main.views import get_connection
 
 if __name__ == "__main__":
 
@@ -45,7 +46,7 @@ if __name__ == "__main__":
 
             elif args['a'] == 'delete':
                 # delete user
-                # "{'email': 'some_email'}"
+                # '{"email": "some_email"}'
                 if _db.user_table.delete(pdict['email']):
                     print("deleted user: {}".format(pdict['email']))
                 else:
@@ -53,7 +54,7 @@ if __name__ == "__main__":
 
             elif args['a'] == 'confirm':
                 # confirm new user
-                # "{'email': 'some_email'}"
+                # '{"email": "some_email"}'
                 user_to_confirm = _userdata.get_user(pdict['email'])
                 user_to_confirm.confirmed_at = datetime.datetime.utcnow()
                 if _userdata.put(user_to_confirm):

@@ -10,6 +10,10 @@ class User(UserMixin):
     first_name = None
     last_name = None
 
+    # flask-security role functionality
+    # roles are stored in db by only their string names, but converted to role objects in app environment
+    roles = []
+
     # flask-security confirmable
     confirmed_at = None
 
@@ -28,7 +32,7 @@ class User(UserMixin):
                     - first_name
                     - last_name
                     - active (bool) (injected by UserDatastore._prepare_create_user_args)
-                    - roles ([Role objects]) (injected by UserDatastore._prepare_create_user_args)
+                    - roles ([Role names]) (injected by UserDatastore._prepare_create_user_args)
         """
         args = attr_dict or kwargs
         for k, v in args.items():
@@ -47,13 +51,12 @@ class User(UserMixin):
 
 class Role(RoleMixin):
     """Just two possible roles:
-    {'id': 0, 'name: 'pleb', 'description': 'regular user'}
-    {'id': 1, 'name: 'royal', 'description': 'administrator'}
+    {'name: 'pleb', 'description': 'regular user'}
+    {'name: 'royal', 'description': 'administrator'}
     """
     def __init__(self, attr_dict=None, **kwargs):
         """
         :param kwargs: must include:
-                    - id
                     - name
                     - description
         """
@@ -82,9 +85,6 @@ class Datastore(object):
 
 
 class DynamoDatastore(Datastore):
-    """
-    :param dynamo_conn: An instance of the DynamoConn ORM emulator
-    """
     def put(self, model):
         """ write an object to dynamoDB;
         must be agnostic to which model type is being added
@@ -118,9 +118,9 @@ class DynamoUserDatastore(DynamoDatastore, UserDatastore):
         # user/role_model: class definitions for User and Role
         UserDatastore.__init__(self, user_model, role_model)
 
+    # overridden to replace find_user with get_user (dynamo scan operations are very expensive)
     def _prepare_role_modify_args(self, user, role):
         if isinstance(user, string_types):
-            # overridden to replace find_user with get_user (dynamo scan operations too expensive)
             user = self.get_user(email=user)
         if isinstance(role, string_types):
             role = self.find_role(name=role)
@@ -147,15 +147,15 @@ class DynamoUserDatastore(DynamoDatastore, UserDatastore):
                 ...
         :return: instance of User class, or False if no match
         """
-        print("kwargslen", len(kwargs), kwargs)
+
         # if kwargs only contains the primary ID (email), revert to more efficient get_user method
-        # if len(kwargs) == 1 and ('email' in kwargs or 'id' in kwargs):
         if len(kwargs) == 1 and 'email' in kwargs:
             return self.get_user(kwargs['email'])
         elif len(kwargs) == 1 and 'id' in kwargs:
             return self.get_user(kwargs['id'])
         # otherwise, scan the table for attribute value matches
         else:
+            print("FINDING with scan")
             user_attr_dict = self.dynamo_conn.user_table.scan(**kwargs)
             if user_attr_dict:
                 return User(attr_dict=user_attr_dict)
@@ -170,3 +170,33 @@ class DynamoUserDatastore(DynamoDatastore, UserDatastore):
         role = self.dynamo_conn.role_table.get(name=name)
         if role:
             return role
+
+    # overridden to ensure that only role names are listed on user.roles
+    # default implementation writes entire role object
+    def add_role_to_user(self, user, role):
+        """Adds a role to a user.
+
+        :param user: The user to manipulate
+        :param role: The role to add to the user
+        """
+        user, role = self._prepare_role_modify_args(user, role)
+
+        if role not in user.roles:
+            user.roles.append(role.name)
+            self.put(user)
+            return True
+        return False
+
+    def remove_role_from_user(self, user, role):
+        """Removes a role from a user.
+
+        :param user: The user to manipulate
+        :param role: The role to remove from the user
+        """
+        rv = False
+        user, role = self._prepare_role_modify_args(user, role)
+        if role in user.roles:
+            rv = True
+            user.roles.remove(role)
+            self.put(user)
+        return rv

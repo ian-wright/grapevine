@@ -1,63 +1,103 @@
 import React, { Component } from 'react';
-import logo from './logo.svg';
+import axios from 'axios';
+
+import { GrapeContainer } from './routes/shared/grape-container';
+import { LoadScreen } from './routes/loading/load-screen';
+import { Login } from './routes/login/login';
+
 import './App.css';
-import { Stack } from './components/shares/index';
 
-const fakeData = 
-[
-  {
-    sender: "Mike",
-    items: [
-      {
-        title: "Trump dead!",
-        author: "Bill Smith",
-        source: "NYT",
-        content: "blerp",
-        isRead: false,
-        isArchived: false,
-        isTrash: false
 
-      },
-      {
-        title: "Rejoice!",
-        author: "Rick Smith",
-        source: "Huffpost",
-        content: "blerp",
-        isRead: false,
-        isArchived: false,
-        isTrash: false
-      },
-      {
-        title: "Knicks lose.",
-        author: "Steve Smith",
-        source: "SportThing",
-        content: "blerp",
-        isRead: false,
-        isArchived: false,
-        isTrash: false
-      }
-    ]
-  }
-]
-;
 
 class App extends Component {
-  render() {
 
-    return (
-      <div className="App">
-        <header className="App-header">
-          <img src={logo} className="App-logo" alt="logo" />
-          <h1 className="App-title">Welcome to React</h1>
-        </header>
-        <div>
+    constructor(props) {
+        super(props);
+        // assume an auth token already exists in localStorage (validity unknown)
+        this.state = {
+            authToken: localStorage.getItem('authToken'),
+            isTokenValid: null
+        };
 
-        </div>
-        <Stack 
-          stackData={fakeData[0]}/>
-      </div>
-    );
-  }
+        this.validateToken = this.validateToken.bind(this);
+        this.login = this.login.bind(this);
+        this.logout = this.logout.bind(this);
+
+        this.validateToken(this.state.authToken);
+
+    }
+
+    validateToken(token) {
+        if (token == null) {
+            this.setState({isTokenValid: false});
+            console.log("isTokenValid:", this.state.isTokenValid);
+        } else {
+            const baseURL = this.props.APIbaseURL;
+            axios({
+                method: 'get',
+                url: baseURL + '/validate-token',
+                headers: {'auth-token': token}
+            }).then((response) => {
+                // response status 200 - OK
+                console.log(response);
+                this.setState({isTokenValid: true});
+                console.log("isTokenValid:", this.state.isTokenValid);
+            }).catch((error) => {
+                if (error.response) {
+                    // server side error
+                    console.log("couldn't validate token with server");
+                    console.log(error.response.data);
+                } else if (error.request) {
+                    // client side error
+                    console.log("problem sending token validation request on client side");
+                    console.log(error.request);
+                } else {
+                    console.log("error validating token");
+                    console.log(error.message);
+                }
+                this.setState({isTokenValid: false}); 
+                console.log("isTokenValid:", this.state.isTokenValid);
+            });
+        }
+    }
+
+    login() {
+        console.log("valid token saved; logging in.")
+        this.setState({
+            isTokenValid: true
+        });
+    }
+
+    logout() {
+        console.log("killing token; logging out.")
+        localStorage.removeItem('authToken');
+        this.setState({
+            isTokenValid: false
+        });
+    }
+
+    render() {
+        let toRender;
+        if (this.state.isTokenValid === false) {
+            // invalid or missing token
+            toRender = <Login 
+                            APIbaseURL={ this.props.APIbaseURL }
+                            onFreshToken={ this.login }/>;
+        } else if (this.state.isTokenValid === true) {
+            // valid token
+            toRender = <GrapeContainer 
+                            onLogout={ this.logout }/>;
+        } else {
+            // status: still loading token (null)
+            toRender = <LoadScreen />;
+        }
+
+        return (
+            <div className="App">
+                { toRender }
+            </div>
+        );
+    }
 }
 
 export default App;

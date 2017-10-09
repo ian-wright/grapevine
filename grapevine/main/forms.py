@@ -15,21 +15,4 @@ class ConfirmRegisterFormWithNames(ConfirmRegisterForm, PasswordConfirmFormMixin
     last_name = StringField('Last Name', [Required()])
 
 
-# class InviteUserEmailForm(Form, UserEmailFormMixin):
-#
-#     # submit = SubmitField('Add a friend.')
-#
-#     def validate(self):
-#         print("validating existing user email form for friend invite...")
-#         return super(InviteUserEmailForm, self).validate()
-#
-#
-# class InviteEmailForm(Form, EmailFormMixin):
-#
-#     # submit = SubmitField('Add a friend.')
-#
-#     def validate(self):
-#         print("validating new user email form for friend invite...")
-#         return super(InviteEmailForm, self).validate()
-
 
