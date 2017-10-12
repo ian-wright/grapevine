@@ -3,11 +3,13 @@ import axios from 'axios';
 
 import { GrapeContainer } from './routes/shared/grape-container';
 import { LoadScreen } from './routes/loading/load-screen';
-import { Login } from './routes/login/login';
-
-import './App.css';
+import { LoginRegister } from './routes/login-register/login-register';
 
 
+// 'App' holds state:
+//      - auth token
+
+// 'App' controls flow from login to main page and back
 
 class App extends Component {
 
@@ -29,7 +31,8 @@ class App extends Component {
 
     validateToken(token) {
         if (token == null) {
-            this.setState({isTokenValid: false});
+            // called before component is mounted
+            this.state = {isTokenValid: false};
             console.log("isTokenValid:", this.state.isTokenValid);
         } else {
             const baseURL = this.props.APIbaseURL;
@@ -80,7 +83,7 @@ class App extends Component {
         let toRender;
         if (this.state.isTokenValid === false) {
             // invalid or missing token
-            toRender = <Login 
+            toRender = <LoginRegister 
                             APIbaseURL={ this.props.APIbaseURL }
                             onFreshToken={ this.login }/>;
         } else if (this.state.isTokenValid === true) {

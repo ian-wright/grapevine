@@ -1,11 +1,11 @@
 .Sidebar-button {
-	height: 100px;
+	height: 90px;
 }
 
 .Sidebar-button-container {
 	position: absolute;
 	bottom: 0;
-	width: 100px;
+	width: 100%;
 }
 
 .Sidebar-active {
@@ -17,10 +17,7 @@
 }
 
 .Sidebar {
-	position: fixed;
-	left: 0;
-	top: 0;
-	bottom: 0;
-	width: 100px;
+	height: 100%;
+	width: 100%;
 	background-color: grey; 
 }

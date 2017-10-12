@@ -57,6 +57,8 @@ class DefaultConfig:
     SECURITY_BLUEPRINT_NAME = 'security_bp'
     SECURITY_PASSWORD_HASH = 'sha512_crypt'
 
+    SECURITY_POST_CONFIRM_VIEW = '/confirm-account-landing'
+
     # custom endpoint for friend invite confirmation
     # FRIEND_CONFIRM_URL = '/friend-confirm'
     SECURITY_EMAIL_SUBJECT_CONFIRM = "Confirm your email to join Grapevine"

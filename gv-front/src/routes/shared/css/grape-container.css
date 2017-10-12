@@ -1,0 +1,47 @@
+.GrapeContainer {
+	text-align: center;
+	position: relative;
+	height: 100%;
+	width: 100%;
+
+	--sidebar-width: 90px;
+}
+
+.GrapeHeader {
+  background-color: #666699;
+  height: 120px;
+  padding: 20px;
+  color: white;
+  position: relative;
+  left: var(--sidebar-width);
+}
+
+.GrapeLogo {
+  animation: GrapeLogo-spin infinite 20s linear;
+  height: 80px;
+}
+
+@keyframes GrapeLogo-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.GrapeHeader-title {
+  font-size: 1.5em;
+}
+
+.Sidebar-container {
+	position: fixed;
+	left: 0;
+	top: 0;
+	bottom: 0;
+	width: var(--sidebar-width);
+}
+
+.ReadContainer {
+	position: relative;
+	left: var(--sidebar-width);
+
+}
+
+

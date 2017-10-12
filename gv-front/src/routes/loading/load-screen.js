@@ -1,7 +1,7 @@
 // import React, { Component } from 'react';
 import React from 'react';
 
-// import '../../App.css';
+import './css/load-screen.css'
 
 import grapes from '../shared/img/grapes.png';
 

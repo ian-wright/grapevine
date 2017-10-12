@@ -124,19 +124,21 @@ class Item extends Component {
 }
 
 
-const StackHeader = props =>
+const StackHeader = props => (
     <div className="Stack-header">
         from: <b>{props.sender}</b>
     </div>
+)
 
 
-const ControlButton = props =>
+const ControlButton = props => (
     <button onClick={props.onClickHandler}
         className="Item-control"
         type="button"
         stack-index={props.stackIndex}>
         {props.text}
     </button>
+)
 
 
 const IsReadIndicator = props => {

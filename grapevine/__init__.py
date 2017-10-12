@@ -1,5 +1,6 @@
 
-# TODO: integrate TravisCI configurations
+# TODO: integrate TravisCI
+
 import grapevine.config as cfg
 from flask import Flask, send_from_directory
 from flask_cors import CORS
@@ -29,6 +30,7 @@ def create_app(env):
     app.config.from_object(__CFG__[env])
 
     # enable cross-domain API requests
+    # TODO - may need to enable cross-domain cookies if I ever use sessions... but do I?
     CORS(app)
     # initialize flask-mail
     mail.init_app(app)
@@ -54,16 +56,19 @@ def create_app(env):
     app.register_blueprint(friends_bp)
 
     # serve the React app assets
-    @app.route('/', defaults={'path': ''})
-    @app.route('/<path:path>')
-    def react(path):
-        if path == "":
-            return send_from_directory('react-build', 'index.html')
-        else:
-            if os.path.exists('./grapevine/react-build/' + path):
-                return send_from_directory('react-build', path)
-            else:
-                return send_from_directory('react-build', 'index.html')
+    # @app.route('/', defaults={'path': ''})
+    # @app.route('/<path:path>')
+    # def react(path):
+    #     if path == "":
+    #         return send_from_directory('react-build', 'index.html')
+    #     # TODO - in production, when react is hosted from S3, might need to set up simple redirect views
+    #     # that go from the post-confirm pages back to S3
+    #     else:
+    #         if os.path.exists('./grapevine/react-build/' + path):
+    #             return send_from_directory('react-build', path)
+    #         else:
+    #             print("catching a path...")
+    #             return send_from_directory('react-build', 'index.html')
 
     # log all available endpoints
     print("\nAVAILABLE RULES:\n")

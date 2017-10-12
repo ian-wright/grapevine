@@ -32,7 +32,7 @@ class FriendManager:
         else:
             email_subject = current_app.config['EMAIL_SUBJECT_FRIEND_REQUEST'].format(sender_user.first_name)
             template_string = 'friend_request_existing_user'
-            app_link =url_for('main_bp.home', _external=True)
+            app_link =url_for('react', _external=True)
 
         send_mail(
             email_subject,
@@ -52,24 +52,25 @@ class FriendManager:
         :return: Confirmed friendship object, if successful
         """
         friendship_to_confirm = self._db.friend_table.get_friendship(email_1, email_2)
-        friendship_to_confirm.confirmed_at = datetime.datetime.utcnow()
-        self._db.put_model(friendship_to_confirm)
+        if friendship_to_confirm:
+            friendship_to_confirm.confirmed_at = datetime.datetime.utcnow()
+            self._db.put_model(friendship_to_confirm)
 
-        receiver_user = self._db.user_table.get(friendship_to_confirm.receiver_email)
+            receiver_user = self._db.user_table.get(friendship_to_confirm.receiver_email)
 
-        email_subject = current_app.config['EMAIL_SUBJECT_FRIEND_CONFIRM'].format(receiver_user.first_name)
-        template_string = 'friendship_confirmation'
-        app_link = url_for('main_bp.home', _external=True)
+            email_subject = current_app.config['EMAIL_SUBJECT_FRIEND_CONFIRM'].format(receiver_user.first_name)
+            template_string = 'friendship_confirmation'
+            app_link = url_for('react', _external=True)
 
-        # send a notification email to the friendship requester
-        send_mail(
-            email_subject,
-            friendship_to_confirm.sender_email,
-            template_string,
-            user=receiver_user,
-            app_link=app_link
-        )
-        return friendship_to_confirm
+            # send a notification email to the friendship requester
+            send_mail(
+                email_subject,
+                friendship_to_confirm.sender_email,
+                template_string,
+                user=receiver_user,
+                app_link=app_link
+            )
+            return friendship_to_confirm
 
     def delete_pending_request(self, email_1, email_2):
         """
@@ -80,19 +81,20 @@ class FriendManager:
         :return: Deleted friendship object, if successful
         """
         deleted_friendship = self._db.friend_table.delete(email_1, email_2)
-        receiver_user = self._db.user_table.get(deleted_friendship.receiver_email)
+        if deleted_friendship:
+            receiver_user = self._db.user_table.get(deleted_friendship.receiver_email)
 
-        email_subject = current_app.config['EMAIL_SUBJECT_FRIEND_REJECT'].format(receiver_user.first_name)
-        template_string = 'friendship_rejection'
+            email_subject = current_app.config['EMAIL_SUBJECT_FRIEND_REJECT'].format(receiver_user.first_name)
+            template_string = 'friendship_rejection'
 
-        # send a notification email to the friendship requester
-        send_mail(
-            email_subject,
-            deleted_friendship.sender_email,
-            template_string,
-            user=receiver_user,
-        )
-        return deleted_friendship
+            # send a notification email to the friendship requester
+            send_mail(
+                email_subject,
+                deleted_friendship.sender_email,
+                template_string,
+                user=receiver_user,
+            )
+            return deleted_friendship
 
     def list_pending_requests_users(self, receiver_email):
         """

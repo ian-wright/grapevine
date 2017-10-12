@@ -177,7 +177,13 @@ class BaseTable(object):
             converted_response = {}
             for k, v in response['Item'].items():
                 converted_response[k] = self.convert_attr_from_dynamo(v)
-            # print('converted response dict:', converted_response)
+            return class_type(**converted_response)
+
+        # delete_item() case
+        if 'Attributes' in response:
+            converted_response = {}
+            for k, v in response['Attributes'].items():
+                converted_response[k] = self.convert_attr_from_dynamo(v)
             return class_type(**converted_response)
 
         # query() case
@@ -185,7 +191,6 @@ class BaseTable(object):
             converted_response = {}
             for k, v in response['Items'][0].items():
                 converted_response[k] = self.convert_attr_from_dynamo(v)
-            # print('converted response dict:', converted_response)
             return class_type(**converted_response)
 
 
@@ -237,12 +242,13 @@ class UserTable(BaseTable):
         :return: True for success, or False for failure
         """
         try:
-            self.table.delete_item(
+            deleted_user = self.table.delete_item(
                 Key={
                     'email': email
                 }
             )
-            return True
+            if 'Attributes' in deleted_user:
+                return self.response_to_object(deleted_user, User)
         except:
             raise IOError("Couldn't delete {} from DynamoDB".format(email))
 
@@ -298,12 +304,13 @@ class RoleTable(BaseTable):
         :return: True, if successful
         """
         try:
-            self.table.delete_item(
+            deleted_role = self.table.delete_item(
                 Key={
                     'name': name
                 }
             )
-            return True
+            if 'Attributes' in deleted_role:
+                return self.response_to_object(deleted_role, Role)
         except:
             raise IOError("Couldn't delete {} from DynamoDB".format(name))
 
@@ -366,7 +373,7 @@ class FriendTable(BaseTable):
                 ReturnValues='ALL_OLD'
             )
             if 'Attributes' in deleted_friendship_1:
-                return self.response_to_object(deleted_friendship_1['Attributes'], Friendship)
+                return self.response_to_object(deleted_friendship_1, Friendship)
 
             # if that doesn't return anything, try receiver-sender combo (on GSI)
             deleted_friendship_2 = self.table.delete_item(
@@ -377,7 +384,7 @@ class FriendTable(BaseTable):
                 ReturnValues='ALL_OLD'
             )
             if 'Attributes' in deleted_friendship_2:
-                return self.response_to_object(deleted_friendship_2['Attributes'], Friendship)
+                return self.response_to_object(deleted_friendship_2, Friendship)
 
         except Exception as e:
             print("Couldn't delete {} + {} Friendship from DynamoDB".format(email_1, email_2))
