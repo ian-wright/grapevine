@@ -4,6 +4,9 @@
 # virtual env
 gv_venv/
 
+# react build files
+grapevine/react-build
+
 # local dynamo
 dynamodb_local_latest/
 
@@ -19,3 +22,5 @@ dynamodb_local_latest/
 # python3
 *.pyc
 *__pycache__*
+
+

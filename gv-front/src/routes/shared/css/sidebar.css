@@ -21,3 +21,7 @@
 	width: 100%;
 	background-color: grey; 
 }
+
+/*.ReactModal__Content .ReactModal__Content--afteropen {
+	padding: 0;
+}*/
