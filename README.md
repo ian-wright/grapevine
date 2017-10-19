@@ -4,6 +4,7 @@ An Instapaper/Pocket-like tool with an emphasis on sharing and discussing conten
 
 ## Tech stack:
 - Python Flask backend (user management, content sharing API)
-- AWS DynamoDB datastore
-- React JS frontend app
+- DynamoDB datastore
+- ReactJS frontend app
+- Browser plugin
 - Hosted on AWS ElasticBeanstalk + S3
