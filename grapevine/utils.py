@@ -1,6 +1,7 @@
 from werkzeug.local import LocalProxy
 from grapevine.dynamo.orm import DynamoConn
 from grapevine.friends.friends import FriendManager
+from grapevine.shares.shares import ShareManager
 
 
 def get_connection(app):
@@ -8,10 +9,18 @@ def get_connection(app):
     _dyn = LocalProxy(lambda: app.extensions['dynamo'])
     # ORM object
     _db = DynamoConn(_dyn)
-    # Friend Manager object
+    # FriendManager instance
     _friends = FriendManager(_db)
+    # ShareManager instance
+    _shares = ShareManager(_db)
     # flask-security extension
     _security = LocalProxy(lambda: app.extensions['security'])
     # user datastore required for flask-security
-    _userdata = LocalProxy(lambda: _security.datastore)
-    return _dyn, _db, _friends, _userdata
+    _users = LocalProxy(lambda: _security.datastore)
+    return {
+        '_dyn': _dyn,
+        '_db': _db,
+        '_users': _users,
+        '_friends': _friends,
+        '_shares': _shares
+    }

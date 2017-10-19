@@ -26,21 +26,17 @@ def create_app(env):
     if env not in __CFG__:
         raise ValueError("Invalid configuration: %s" % env)
 
-    app = Flask(__name__, static_folder='react-build')
+    app = Flask(__name__)
     app.config.from_object(__CFG__[env])
 
-    # enable cross-domain API requests
-    # TODO - may need to enable cross-domain cookies if I ever use sessions... but do I?
-    CORS(app)
     # initialize flask-mail
     mail.init_app(app)
 
     # require an app context to initialize the dynamo extension
     with app.app_context():
-        # from grapevine.extension_models import dynamo
         dynamo.init_app(app)
 
-    # instantiate an abstract dynamo connector that sits on top of base extension object
+    # instantiate an abstract dynamo connector that sits on top of base-level dynamo extension object
     db = DynamoConn(dynamo)
     user_datastore = DynamoUserDatastore(db, User, Role)
     security.init_app(
@@ -61,7 +57,6 @@ def create_app(env):
     # def react(path):
     #     if path == "":
     #         return send_from_directory('react-build', 'index.html')
-    #     # TODO - in production, when react is hosted from S3, might need to set up simple redirect views
     #     # that go from the post-confirm pages back to S3
     #     else:
     #         if os.path.exists('./grapevine/react-build/' + path):
@@ -71,10 +66,14 @@ def create_app(env):
     #             return send_from_directory('react-build', 'index.html')
 
     # log all available endpoints
-    print("\nAVAILABLE RULES:\n")
-    for rule in app.url_map.iter_rules():
-        print("url:", rule)
-        print("endpoint:", rule.endpoint, "\n")
+    # print("\nAVAILABLE RULES:\n")
+    # for rule in app.url_map.iter_rules():
+    #     print("url:", rule)
+    #     print("endpoint:", rule.endpoint, "\n")
+
+    # enable cross-domain API requests
+    # TODO - may need to enable cross-domain cookies if I ever use sessions... but do I?
+    CORS(app)
 
     return app
 

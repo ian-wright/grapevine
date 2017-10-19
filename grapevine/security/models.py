@@ -4,25 +4,6 @@ from flask_security.utils import string_types
 
 
 class User(UserMixin):
-    # registration form fields
-    email = None
-    password = None
-    first_name = None
-    last_name = None
-
-    # flask-security role functionality
-    # roles are stored in db by only their string names, but converted to role objects in app environment
-    roles = []
-
-    # flask-security confirmable
-    confirmed_at = None
-
-    # flask-security trackable
-    last_login_at = None
-    current_login_at = None
-    last_login_ip = None
-    current_login_ip = None
-    login_count = None
 
     def __init__(self, attr_dict=None, **kwargs):
         """
@@ -31,14 +12,35 @@ class User(UserMixin):
                     - password
                     - first_name
                     - last_name
-                    - active (bool) (injected by UserDatastore._prepare_create_user_args)
-                    - roles ([Role names]) (injected by UserDatastore._prepare_create_user_args)
         """
+
+        # self.active (bool) (injected by UserDatastore._prepare_create_user_args)
+
+        # self.roles ([Role.name string]) (injected by UserDatastore._prepare_create_user_args)
+        # flask-security role functionality
+        # roles are stored in db by only their string names, but converted to role objects in app environment
+
         args = attr_dict or kwargs
-        for k, v in args.items():
-            setattr(self, k, v)
+
+        # registration form fields
+        self.email = args.get('email')
+        self.password = args.get('password')
+        self.first_name = args.get('first_name')
+        self.last_name = args.get('last_name')
+        self.roles = args.get('roles', [])
+
         # flask-security needs a unique user ID, so email is used again
         self.id = args['email']
+
+        # flask-security confirmable
+        self.confirmed_at = args.get('confirmed_at', None)
+
+        # flask-security trackable
+        self.last_login_at = args.get('last_login_at', None)
+        self.current_login_at = args.get('current_login_at', None)
+        self.last_login_ip = args.get('last_login_ip', None)
+        self.current_login_ip = args.get('current_login_ip', None)
+        self.login_count = args.get('login_count', 0)
 
     # Custom User Payload
     def get_security_payload(self):
@@ -55,14 +57,9 @@ class Role(RoleMixin):
     {'name: 'royal', 'description': 'administrator'}
     """
     def __init__(self, attr_dict=None, **kwargs):
-        """
-        :param kwargs: must include:
-                    - name
-                    - description
-        """
         args = attr_dict or kwargs
-        for k, v in args.items():
-            setattr(self, k, v)
+        self.name = args.get('name')
+        self.description = args.get('description')
 
 
 class Datastore(object):
@@ -181,11 +178,10 @@ class DynamoUserDatastore(DynamoDatastore, UserDatastore):
         """
         user, role = self._prepare_role_modify_args(user, role)
 
+        # if role.name not in [role.name for role in user.roles]:
         if role not in user.roles:
-            user.roles.append(role.name)
-            self.put(user)
-            return True
-        return False
+            user.roles.append(role)
+            return self.put(user)
 
     def remove_role_from_user(self, user, role):
         """Removes a role from a user.
@@ -195,8 +191,7 @@ class DynamoUserDatastore(DynamoDatastore, UserDatastore):
         """
         rv = False
         user, role = self._prepare_role_modify_args(user, role)
-        if role in user.roles:
-            rv = True
+        if role.name in [role.name for role in user.roles]:
             user.roles.remove(role)
             self.put(user)
         return rv

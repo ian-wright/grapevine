@@ -3,8 +3,24 @@ from flask_security.utils import send_mail, config_value
 import datetime
 
 
-class FriendManager:
+class Friendship:
+    def __init__(self, attr_dict=None, **kwargs):
+        args = attr_dict or kwargs
 
+        self.sender_email = args.get('sender_email')
+        self.receiver_email = args.get('receiver_email')
+        self.requested_at = args.get('requested_at', datetime.datetime.utcnow())
+        self.confirmed_at = args.get('confirmed_at', None)
+
+    def __eq__(self, other):
+        return self.__dict__ == other.__dict__
+
+    def confirm(self):
+        self.confirmed_at = datetime.datetime.utcnow()
+        return self
+
+
+class FriendManager:
     def __init__(self, dynamo_conn):
         self._db = dynamo_conn
 
@@ -20,20 +36,21 @@ class FriendManager:
         """
         new_friendship = Friendship(
             sender_email=sender_user.email,
-            receiver_email=receiver_email,
-            requested_at=datetime.datetime.utcnow()
+            receiver_email=receiver_email
         )
         self._db.put_model(new_friendship)
 
         if new_user:
             email_subject = current_app.config['EMAIL_SUBJECT_APP_REQUEST'].format(sender_user.first_name)
             template_string = 'app_request_new_user'
-            app_link = url_for('security.register', _external=True)
+            app_link = current_app.config['REACT_BASE_URL'] + '/register'
         else:
             email_subject = current_app.config['EMAIL_SUBJECT_FRIEND_REQUEST'].format(sender_user.first_name)
             template_string = 'friend_request_existing_user'
-            app_link =url_for('react', _external=True)
+            # TODO - this will break with an independent static server in production
+            app_link = current_app.config['REACT_BASE_URL'] + '/grapes'
 
+        print("sending an email to: ", receiver_email)
         send_mail(
             email_subject,
             receiver_email,
@@ -60,9 +77,10 @@ class FriendManager:
 
             email_subject = current_app.config['EMAIL_SUBJECT_FRIEND_CONFIRM'].format(receiver_user.first_name)
             template_string = 'friendship_confirmation'
-            app_link = url_for('react', _external=True)
+            app_link = current_app.config['REACT_BASE_URL'] + '/grapes'
 
             # send a notification email to the friendship requester
+            print("sending an email to: ", friendship_to_confirm.sender_email)
             send_mail(
                 email_subject,
                 friendship_to_confirm.sender_email,
@@ -96,34 +114,39 @@ class FriendManager:
             )
             return deleted_friendship
 
-    def list_pending_requests_users(self, receiver_email):
+    def list_pending_receieved_requests_payload(self, receiver_email):
         """
         Given the logged in users email id, get a list of {first_name, last_name, email}
-        dict objects for each pending friend request.
+        dict objects for each RECEIVED pending friend request.
         :param receiver_email: current user's email
+        :return: list of dicts; empty list if no requests
+        """
+        sender_emails = self._db.friend_table.list_pending_received_requests(receiver_email)
+        return [self._db.user_table.get(email).get_security_payload() for email in sender_emails]
+
+    def list_pending_sent_requests_payload(self, sender_email):
+        """
+        Given the logged in users email id, get a list of {first_name, last_name, email}
+        dict objects for each SENT pending friend request.
+        :param requester_email: current user's email
+        :return: list of dicts; empty list if no requests
+        """
+        receiver_emails = self._db.friend_table.list_pending_sent_requests(sender_email)
+        return [self._db.user_table.get(email).get_security_payload() for email in receiver_emails]
+
+    def list_confirmed_friends_payload(self, email):
+        """
+        Given any email address, retrieve all confirmed friends, as {first_name, last_name, email}
+        dict objects for each confirmed friend.
+        :param email:
         :return: list of dicts, or None if no requests
         """
-        requester_emails = self._db.friend_table.list_pending_received_requests(receiver_email)
-        return [self._db.user_table.get(email).get_security_payload() for email in requester_emails]
+        friend_emails = self._db.friend_table.list_confirmed_friends(email)
+        return [self._db.user_table.get(email).get_security_payload() for email in friend_emails]
 
 
-# TODO - should friend invite tokens expire? For now - not using any tokens for friend requests
 
 
-class Friendship:
 
-    sender_email = None
-    receiver_email = None
-    requested_at = None
-    confirmed_at = None
-
-    def __init__(self, attr_dict=None, **kwargs):
-        self.sender_email = kwargs.get('sender_email')
-        self.receiver_email = kwargs.get('receiver_email')
-        self.requested_at = kwargs.get('requested_at')
-
-    def confirm(self):
-        self.confirmed_at = datetime.datetime.utcnow()
-        return self
 
 

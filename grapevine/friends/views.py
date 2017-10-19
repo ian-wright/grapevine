@@ -37,10 +37,13 @@ def add_friend():
         }
     }
     """
-    _dyn, _db, _friends, _userdata = get_connection(current_app)
+    conn = get_connection(current_app)
+    _db = conn['_db']
+    _users = conn['_users']
+    _friends = conn['_friends']
 
     target_email = request.json['target_email']
-    target_user = _userdata.get_user(target_email)
+    target_user = _users.get_user(target_email)
 
     response = {
         'valid_email': 'false',
@@ -104,7 +107,8 @@ def confirm_friend_request():
     Confirms a pending friend request, and sends a confirmation email to original requester
     :return: {'confirmed': 'true' | 'false}
     """
-    _dyn, _db, _friends, _userdata = get_connection(current_app)
+    conn = get_connection(current_app)
+    _friends = conn['_friends']
 
     requester_email = request.json['requester_email']
     did_confirm = _friends.confirm_pending_request(current_user.email, requester_email)
@@ -121,7 +125,8 @@ def delete_friend_request():
     Deletes a pending friend request, and sends a rejection email to original requester
     :return: {'deleted': 'true' | 'false}
     """
-    _dyn, _db, _friends, _userdata = get_connection(current_app)
+    conn = get_connection(current_app)
+    _friends = conn['_friends']
 
     requester_email = request.json['requester_email']
     did_delete = _friends.delete_pending_request(current_user.email, requester_email)
@@ -131,6 +136,21 @@ def delete_friend_request():
     return make_response(jsonify(response), status)
 
 
-# @friends_bp.route('/pending-requests', methods=['POST'])
-# @login_required
-# def list_pending_requests():
+@friends_bp.route('/list-pending-requests', methods=['POST'])
+@auth_token_required
+def list_pending_requests():
+    """
+
+    :return:
+    """
+    pass
+
+
+@friends_bp.route('/list-confirmed-friends', methods=['POST'])
+@auth_token_required
+def list_confirmed_friends():
+    """
+
+    :return:
+    """
+    pass

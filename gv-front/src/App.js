@@ -25,19 +25,16 @@ class App extends Component {
         this.state = {
             authToken: localStorage.getItem('authToken'),
             isTokenValid: null,
+            user: null
         };
 
         this.validateToken = this.validateToken.bind(this);
         this.login = this.login.bind(this);
         this.logout = this.logout.bind(this);
+        this.apiAxios = this.apiAxios.bind(this);
 
         // validate the token
         this.validateToken(this.state.authToken);
-
-    }
-
-    // create a top-level instance of an axios client that is flexible enough to use throughout the app
-    axios(base, method, ) {
 
     }
 
@@ -54,16 +51,21 @@ class App extends Component {
                 headers: {'auth-token': token}
             }).then((response) => {
                 // response status 200 - OK
-                console.log(response);
                 this.setState({
-                    isTokenValid: true
+                    isTokenValid: true,
+                    user: {
+                        firstName: response.data.first_name,
+                        lastName: response.data.last_name,
+                        email: response.data.email
+                    }
                 });
                 console.log("isTokenValid:", this.state.isTokenValid);
             }).catch((error) => {
                 if (error.response) {
                     // server side error
                     console.log("couldn't validate token with server");
-                    console.log(error.response.data);
+                    this.setState({isTokenValid: false}); 
+                    console.log("isTokenValid:", this.state.isTokenValid);
                 } else if (error.request) {
                     // client side error
                     console.log("problem sending token validation request on client side");
@@ -72,8 +74,6 @@ class App extends Component {
                     console.log("error validating token");
                     console.log(error.message);
                 }
-                this.setState({isTokenValid: false}); 
-                console.log("isTokenValid:", this.state.isTokenValid);
             });
         }
     }
@@ -94,10 +94,16 @@ class App extends Component {
             console.log("response.data", response.data);
             // save the token
             const token = response.data.response.user.authentication_token;
+            const user = response.data.response.user;
             localStorage.setItem('authToken', token);
             this.setState({
                 isTokenValid: true,
-                authToken: localStorage.getItem('authToken')
+                authToken: localStorage.getItem('authToken'),
+                user: {
+                    firstName: user.first_name,
+                    lastName: user.last_name,
+                    email: user.email
+                }
             });
         }).catch((error) => {
             if (error.response) {
@@ -120,7 +126,31 @@ class App extends Component {
         });
     }
 
+    // ES6 object destructuring to simulate optional named params!
+    apiAxios({url=null, method=null, data=null, cb=null, errCb=null}) {
+        const baseURL = this.props.APIbaseURL;
+        axios({
+            method: method,
+            baseURL: baseURL + url,
+            headers: {'auth-token': this.state.authToken},
+            data: data
+        }).then((response) => {
+            if (cb) {cb(response)};
+        }).catch((error) => {
+            if (error.response) {
+                console.log("server side error", error.response);
+                if (errCb) {errCb(error.response)};
+            } else if (error.request) {
+                console.log("client request error", error.request);
+            } else {
+                console.log("unexpected axios error", error.message);
+            }
+        });
+    }
+
     render() {
+        // TODO - add a third render state for isTokenValid==null (render a loading screen)
+
         return (
             <Router>
                 <div className="App">
@@ -130,7 +160,9 @@ class App extends Component {
                         this.state.isTokenValid
                         ? (<GrapeContainer 
                                 {...props}
-                                onLogout={ this.logout }/>)
+                                onLogout={ this.logout }
+                                ax={ this.apiAxios }
+                                user={ this.state.user }/>)
                         : (<Redirect to="/login"/>)
                     )}/>
                     <Route path="/login" render={(props)=>(

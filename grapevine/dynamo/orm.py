@@ -5,6 +5,7 @@ from boto3.dynamodb.conditions import Attr
 
 from grapevine.friends.friends import Friendship
 from grapevine.security.models import User, Role
+from grapevine.shares.shares import Article, Share
 
 
 class DynamoConn:
@@ -22,13 +23,23 @@ class DynamoConn:
      """
 
     def __init__(self, db):
+        """
+        :param db: a flask-security DynamoDatastore
+        """
         # DynamoConn attributes are the correct access point for all dynamo tables
         self.role_table = RoleTable(db.tables['ROLES'])
         self.user_table = UserTable(db.tables['USERS'], self.role_table)
         self.friend_table = FriendTable(db.tables['FRIENDS'])
+        self.article_table = ArticleTable(db.tables['ARTICLES'])
+        self.share_table = ShareTable(db.tables['SHARES'])
 
     @staticmethod
     def _role_object_to_str(role):
+        """
+        convert a flask-security role object to its name string representation, if necessary
+        :param role: role object OR role name string
+        :return: role name string
+        """
         if isinstance(role, Role):
             return role.name
         else:
@@ -41,19 +52,21 @@ class DynamoConn:
 
         NOTE: operation will completely replace an existing item with duplicate primary key
         """
-
         if isinstance(obj, User):
-            # convert list of role objects back to role name strings
-            # obj.roles = [role.name for role in obj.roles]
+            # convert list of role objects to role name strings
+            # this is required for flask-security to manage roles properly
             obj.roles = list(map(self._role_object_to_str, obj.roles))
             if self.user_table.add(obj):
-                return obj
+                # now flip them back to objects for a return value on put_item success!
+                return self.user_table.objectify_role_strings(obj)
         elif isinstance(obj, Role):
-            if self.role_table.add(obj):
-                return obj
+            return self.role_table.add(obj)
         elif isinstance(obj, Friendship):
-            if self.friend_table.add(obj):
-                return obj
+            return self.friend_table.add(obj)
+        elif isinstance(obj, Article):
+            return self.article_table.add(obj)
+        elif isinstance(obj, Share):
+            return self.share_table.add(obj)
         else:
             raise TypeError("Cant add model. No underlying DynamoDB table registered for type: \
             {}".format(type(obj)))
@@ -68,20 +81,25 @@ class DynamoConn:
         elif isinstance(obj, Role):
             return self.role_table.delete(obj.name)
         elif isinstance(obj, Friendship):
-            return self.friend_table.delete(obj.email_1)
+            return self.friend_table.delete(obj.sender_email, obj.receiver_email)
+        elif isinstance(obj, Article):
+            return self.article_table.delete_article(obj.url)
+        elif isinstance(obj, Share):
+            return self.share_table.delete_share(obj.sender_email, obj.receiver_email, obj.url)
         else:
             raise TypeError("Cant delete model. No underlying DynamoDB table registered for type: \
                         {}".format(type(obj)))
 
 
 class BaseTable(object):
-    """abstract representation of a table in dynamoDB"""
+    # abstract representation of a table in dynamoDB
     def __init__(self, underlying_dynamo_table):
         self.table = underlying_dynamo_table
 
     @classmethod
     def convert_attr_to_dynamo(cls, attr):
-        """Supported value types for dynamo tables are:
+        """
+        Supported value types for dynamo tables are:
         STRING = 'S'
         NUMBER = 'N'
         BINARY = 'B'
@@ -108,7 +126,8 @@ class BaseTable(object):
 
     @classmethod
     def convert_attr_from_dynamo(cls, attr):
-        """Takes an dynamo-formatted attribute value as input,
+        """
+        Takes an dynamo-formatted attribute value as input,
         and converts it to it's useful pythonic format.
 
         :param attr: dynamo attribute value
@@ -123,25 +142,23 @@ class BaseTable(object):
 
     def add(self, obj):
         """
+        Call put_item() on any compatible object to its corresponding DynamoDB table.
 
         :param obj: an instance of User, Role, ect...
-        :return: True for success, False for failure
+        :return: the added object, if successful
         """
+        # create a dict with instance variables only
         new_item = {}
         for k, v in obj.__dict__.items():
             new_item[k] = self.convert_attr_to_dynamo(v)
 
-        try:
-            self.table.put_item(Item=new_item)
-            print("added obj:", new_item)
+        if self.table.put_item(Item=new_item):
+            print("added obj:", obj, vars(obj))
             return True
-        # TODO: what kind of errors thrown here?
-        except:
-            raise IOError("Couldn't write {} to DynamoDB".format(new_item))
 
     def scan(self, **kwargs):
         """
-        Performs an attribute scan over underlying table using specified params.
+        Performs an attribute scan (outside of primary key and GSI) over underlying table using specified params.
 
         :param kwargs: kwargs in form:
                 attr_name1=attr_value1,
@@ -153,17 +170,12 @@ class BaseTable(object):
         filter_list = [Attr(k).eq(self.convert_attr_to_dynamo(v)) for k, v in kwargs.items()]
         filter_expression = filter_list.pop()
         for cond in filter_list:
-
             filter_expression &= cond
-        try:
-            response = self.table.scan(
-                FilterExpression=filter_expression
-            )
-            if 'Items' in response:
-                # assumes that the query is looking for a specific user (only one)
-                return {k: self.convert_attr_from_dynamo(v) for k, v in response['Items'][0].items()}
-        except:
-            raise IOError("Couldn't scan {} on DynamoDB".format(filter_expression))
+
+        response = self.table.scan(FilterExpression=filter_expression)
+        if 'Items' in response:
+            # assumes that the query is looking for a specific user (only one)
+            return {k: self.convert_attr_from_dynamo(v) for k, v in response['Items'][0].items()}
 
     def response_to_object(self, response, class_type):
         """
@@ -172,6 +184,7 @@ class BaseTable(object):
         :param class_type: Class type of output object (Role, User, ect)
         :return: Instance of class type, if it exists
         """
+
         # get_item() case
         if 'Item' in response:
             converted_response = {}
@@ -206,52 +219,43 @@ class UserTable(BaseTable):
         else:
             return self.role_table_model.get(role)
 
-    def _objectify_role_strings(self, user):
+    def objectify_role_strings(self, user):
         # convert the user's list of assigned roles from role name strings to real user objects
+
         if len(user.roles) > 0:
             user.roles = list(map(self._role_str_to_obj, user.roles))
             return user
         return user
 
-    def get(self, email=None):
+    # TODO - rename to get_user
+    def get(self, email):
         """
         Queries dynamo for a specific user.
 
         :param email: email string
         :return: a User instance, or None if no match
         """
-        try:
-            response = self.table.get_item(
-                Key={
-                    'email': email
-                }
-            )
+        response = self.table.get_item(Key={'email': email})
+        user = self.response_to_object(response, User)
+        if user:
+            return self.objectify_role_strings(user)
 
-            user = self.response_to_object(response, User)
-            if user:
-                return self._objectify_role_strings(user)
-        # placeholder for more effective error handling
-        except:
-            raise IOError("Couldn't get user: <{}> from DynamoDB".format(email))
-
-    def delete(self, email=None):
+    # TODO - rename to delete_user
+    def delete(self, email):
         """
         Deletes a specific user from dynamo.
 
         :param email: email string
         :return: True for success, or False for failure
         """
-        try:
-            deleted_user = self.table.delete_item(
-                Key={
-                    'email': email
-                }
-            )
-            if 'Attributes' in deleted_user:
-                return self.response_to_object(deleted_user, User)
-        except:
-            raise IOError("Couldn't delete {} from DynamoDB".format(email))
+        deleted_user = self.table.delete_item(
+            Key={'email': email},
+            ReturnValues='ALL_OLD'
+        )
+        if 'Attributes' in deleted_user:
+            return self.response_to_object(deleted_user, User)
 
+    # TODO - rename to update_user
     def update(self, email=None, attr_name=None, attr_val=None):
         """ Updates one attribute at a time (documentation unclear if there is a syntax for more).
 
@@ -260,24 +264,20 @@ class UserTable(BaseTable):
         :param attr_val: new attribute value
         :return: True for success, or False for failure
         """
-        # TODO: tests this method! be aware of role string-object conversion
-        try:
-            self.table.update_item(
-                Key={
-                    'email': email
-                },
-                UpdateExpression='SET {} = :val1'.format(attr_name),
-                ExpressionAttributeValues={
-                    ':val1': self.convert_attr_to_dynamo(attr_val)
-                }
-            )
-            return True
-        except:
-            raise IOError("Couldn't update {}:{} for {} to DynamoDB".format(attr_name, attr_val, email))
+        # TODO: tests this method! be aware of role string-object conversion; maybe just kill this method
+        updated_user = self.table.update_item(
+            Key={'email': email},
+            UpdateExpression='SET {} = :val1'.format(attr_name),
+            ExpressionAttributeValues={':val1': self.convert_attr_to_dynamo(attr_val)},
+            ReturnValues='ALL_NEW'
+        )
+        if 'Attributes' in updated_user:
+            return self.response_to_object(updated_user, User)
 
 
 class RoleTable(BaseTable):
 
+    # TODO - rename to get_role
     def get(self, name=None):
         """
         Queries dynamo for a specific role, by name.
@@ -285,17 +285,12 @@ class RoleTable(BaseTable):
         :param name: role name string
         :return: a Role instance, or False for failure
         """
-        try:
-            response = self.table.get_item(
-                Key={
-                    'name': name
-                }
-            )
-            return self.response_to_object(response, Role)
-        # TODO: error handling too broad
-        except:
-            raise IOError("Couldn't get role: <{}> from DynamoDB".format(name))
+        response = self.table.get_item(Key={'name': name})
+        role = self.response_to_object(response, Role)
+        if role:
+            return role
 
+    # TODO - rename to delete_role
     def delete(self, name=None):
         """
         Deletes a specific role definition from dynamo.
@@ -303,22 +298,23 @@ class RoleTable(BaseTable):
         :param name: role name string
         :return: True, if successful
         """
-        try:
-            deleted_role = self.table.delete_item(
-                Key={
-                    'name': name
-                }
-            )
-            if 'Attributes' in deleted_role:
-                return self.response_to_object(deleted_role, Role)
-        except:
-            raise IOError("Couldn't delete {} from DynamoDB".format(name))
+        deleted_role = self.table.delete_item(
+            Key={'name': name},
+            ReturnValues='ALL_OLD'
+        )
+        if 'Attributes' in deleted_role:
+            return self.response_to_object(deleted_role, Role)
 
 
 class FriendTable(BaseTable):
 
     @staticmethod
-    def _normalize_email_fields(response_item):
+    def _extract_normalized_email(response_item):
+        """
+
+        :param response_item:
+        :return:
+        """
         if 'sender_email' in response_item:
             return response_item['sender_email']
         if 'receiver_email' in response_item:
@@ -326,36 +322,31 @@ class FriendTable(BaseTable):
 
     def get_friendship(self, email_1, email_2):
         """
-        Given a pair of email ids, return a Friendship instance, if exists
+        Given a pair of email ids, return a Friendship instance, if exists (agnostic to sender vs. receiver)
         :param email_1: First email in pair
         :param email_2: Second email in pair
         :return: Friendship instance, if it exists
         """
         print("trying to get friendship for {} + {}".format(email_1, email_2))
-        try:
-            # try sender-receiver combo first (can use get_item on primary hash)
-            response_1 = self.table.get_item(
-                Key={
-                    'sender_email': email_1,
-                    'receiver_email': email_2
-                }
-            )
-            if 'Item' in response_1:
-                return self.response_to_object(response_1, Friendship)
 
-            # if that doesn't return anything, try receiver-sender combo (must use query on GSI)
-            response_2 = self.table.query(
-                IndexName='receiver-email-index',
-                ExpressionAttributeValues={':v1': email_1, ':v2': email_2},
-                KeyConditionExpression='receiver_email = :v1 AND sender_email = :v2'
-            )
-            if 'Items' in response_2 and len(response_2['Items']) == 1:
-                return self.response_to_object(response_2, Friendship)
+        # try sender-receiver combo first (can use get_item on primary hash)
+        response_1 = self.table.get_item(Key={
+            'sender_email': email_1,
+            'receiver_email': email_2
+        })
+        if 'Item' in response_1:
+            return self.response_to_object(response_1, Friendship)
 
-        except Exception as e:
-            print("Couldn't get friendship for {} and {}".format(email_1, email_2))
-            raise e
+        # if that doesn't return anything, try receiver-sender combo (have to use 'query' on GSI)
+        response_2 = self.table.query(
+            IndexName='receiver_email_index',
+            ExpressionAttributeValues={':re': email_1, ':se': email_2},
+            KeyConditionExpression='receiver_email = :re AND sender_email = :se'
+        )
+        if 'Items' in response_2 and len(response_2['Items']) == 1:
+            return self.response_to_object(response_2, Friendship)
 
+    # TODO - rename to delete_friendship
     def delete(self, email_1, email_2):
         """
         Given an unsorted pair of email ids, remove the associated Friendship record from the table.
@@ -363,95 +354,120 @@ class FriendTable(BaseTable):
         :param email_2: Second email in pair
         :return: dict of attributes for deleted Friendship, if successful
         """
-        try:
-            # try sender-receiver combo first
-            deleted_friendship_1 = self.table.delete_item(
-                Key={
-                    'sender_email': email_1,
-                    'receiver_email': email_2
-                },
-                ReturnValues='ALL_OLD'
-            )
-            if 'Attributes' in deleted_friendship_1:
-                return self.response_to_object(deleted_friendship_1, Friendship)
+        # try sender-receiver combo first
+        deleted_friendship_1 = self.table.delete_item(
+            Key={
+                'sender_email': email_1,
+                'receiver_email': email_2
+            },
+            ReturnValues='ALL_OLD'
+        )
+        if 'Attributes' in deleted_friendship_1:
+            return self.response_to_object(deleted_friendship_1, Friendship)
 
-            # if that doesn't return anything, try receiver-sender combo (on GSI)
-            deleted_friendship_2 = self.table.delete_item(
-                Key={
-                    'sender_email': email_2,
-                    'receiver_email': email_1
-                },
-                ReturnValues='ALL_OLD'
-            )
-            if 'Attributes' in deleted_friendship_2:
-                return self.response_to_object(deleted_friendship_2, Friendship)
-
-        except Exception as e:
-            print("Couldn't delete {} + {} Friendship from DynamoDB".format(email_1, email_2))
-            raise e
+        # if that doesn't return anything, try receiver-sender combo (on GSI)
+        deleted_friendship_2 = self.table.delete_item(
+            Key={
+                'sender_email': email_2,
+                'receiver_email': email_1
+            },
+            ReturnValues='ALL_OLD'
+        )
+        if 'Attributes' in deleted_friendship_2:
+            return self.response_to_object(deleted_friendship_2, Friendship)
 
     def list_confirmed_friends(self, email):
         """
         Given an email id, get a list of confirmed friends' emails (agnostic to who was sender vs receiver)
+
         :param email: Any email id
         :return: List of email ids for friends, or an empty list if no friends
         """
-        try:
-            # query against primary hash, and GSI hash, build and return list of friends
-            sender_response = self.table.query(
-                ExpressionAttributeValues={':v1': email},
-                KeyConditionExpression='sender_email = :v1',
-                ProjectionExpression='receiver_email, confirmed_at'
-            )
-            receiver_response = self.table.query(
-                IndexName='receiver-email-index',
-                ExpressionAttributeValues={':v1': email},
-                KeyConditionExpression='receiver_email = :v1',
-                ProjectionExpression='sender_email, confirmed_at'
-            )
-            response = sender_response.get('Items', []) + receiver_response.get('Items', [])
-            confirmed_response = filter(lambda item: item['confirmed_at'] is not None, response)
-            return [self._normalize_email_fields(item) for item in confirmed_response]
-        except Exception as e:
-            print("Couldn't list confirmed friends for {}".format(email))
-            raise e
+        # query against primary hash, and GSI hash, build and return list of friends
+        sender_response = self.table.query(
+            ExpressionAttributeValues={':se': email},
+            KeyConditionExpression='sender_email = :se',
+            ProjectionExpression='receiver_email, confirmed_at'
+        )
+        receiver_response = self.table.query(
+            IndexName='receiver_email_index',
+            ExpressionAttributeValues={':re': email},
+            KeyConditionExpression='receiver_email = :re',
+            ProjectionExpression='sender_email, confirmed_at'
+        )
+        response = sender_response.get('Items', []) + receiver_response.get('Items', [])
+        confirmed_response = [item for item in response if item['confirmed_at'] is not None]
+
+        return [self._extract_normalized_email(item) for item in confirmed_response]
 
     def list_pending_received_requests(self, receiver_email):
         """
         Given an email id for a receiving user, get a list of all pending friend requests (sender emails)
+
         :param receiver_email: email for request-receiving user
         :return: list of email ids for senders of pending requests
         """
-        try:
-            receiver_response = self.table.query(
-                IndexName='receiver-email-index',
-                ExpressionAttributeValues={':v1': receiver_email},
-                KeyConditionExpression='receiver_email = :v1',
-                ProjectionExpression='sender_email, confirmed_at'
-            )
-            response = receiver_response.get('Items', [])
-            confirmed_response = filter(lambda item: 'confirmed_at' not in item, response)
-            return [self._normalize_email_fields(item) for item in confirmed_response]
-        except Exception as e:
-            print("Couldn't list pending requests sent to {}".format(receiver_email))
-            raise e
+        receiver_response = self.table.query(
+            IndexName='receiver_email_index',
+            ExpressionAttributeValues={':re': receiver_email},
+            KeyConditionExpression='receiver_email = :re',
+            ProjectionExpression='sender_email, confirmed_at'
+        )
+        response = receiver_response.get('Items', [])
+        pending_response = [item for item in response if item['confirmed_at'] is None]
+
+        return [self._extract_normalized_email(item) for item in pending_response]
 
     def list_pending_sent_requests(self, sender_email):
         """
         Given an email id for a sending user, get a list of all pending friend requests (receiver emails)
+
         :param sender_email: email for request-sending user
         :return: list of email ids for receivers of pending requests
         """
-        try:
-            sender_response = self.table.query(
-                ExpressionAttributeValues={':v1': sender_email},
-                KeyConditionExpression='sender_email = :v1',
-                ProjectionExpression='receiver_email, confirmed_at'
-            )
-            response = sender_response.get('Items', [])
-            confirmed_response = filter(lambda item: item['confirmed_at'] is None, response)
-            return [self._normalize_email_fields(item) for item in confirmed_response]
-        except Exception as e:
-            print("Couldn't list pending requests sent by {}".format(sender_email))
-            raise e
+        sender_response = self.table.query(
+            ExpressionAttributeValues={':se': sender_email},
+            KeyConditionExpression='sender_email = :se',
+            ProjectionExpression='receiver_email, confirmed_at'
+        )
+        response = sender_response.get('Items', [])
+        pending_response = [item for item in response if item['confirmed_at'] is None]
 
+        return [self._extract_normalized_email(item) for item in pending_response]
+
+
+class ArticleTable(BaseTable):
+
+    def get_article(self, url):
+        response = self.table.get_item(Key={'url': url})
+        if 'Item' in response:
+            return self.response_to_object(response, Article)
+
+    def delete_article(self, url):
+        deleted_article = self.table.delete_item(
+            Key={'url': url},
+            ReturnValues='ALL_OLD'
+        )
+        if 'Attributes' in deleted_article:
+            return self.response_to_object(deleted_article, Article)
+
+
+class ShareTable(BaseTable):
+
+    def get_share(self, sender_email, receiver_email, url):
+        response = self.table.get_item(Key={
+            'email_key': sender_email + ',' + receiver_email,
+            'url': url
+        })
+        if 'Item' in response:
+            return self.response_to_object(response, Article)
+
+    def delete_share(self, sender_email, receiver_email, url):
+            deleted_article = self.table.delete_item(
+                Key={'url': url},
+                ReturnValues='ALL_OLD'
+            )
+            if 'Attributes' in deleted_article:
+                return self.response_to_object(deleted_article, Article)
+
+    # def list_re

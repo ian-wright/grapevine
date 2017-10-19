@@ -19,27 +19,41 @@ class DefaultConfig:
         },
         {
             'TableName': 'FRIENDS',
-            'KeySchema': [dict(AttributeName='sender_email', KeyType='HASH'),
-                          dict(AttributeName='receiver_email', KeyType='RANGE')],
-            'GlobalSecondaryIndexes': [dict(IndexName='receiver-email-index',
+            'KeySchema': [
+                dict(AttributeName='sender_email', KeyType='HASH'),
+                dict(AttributeName='receiver_email', KeyType='RANGE')
+            ],
+            'GlobalSecondaryIndexes': [dict(IndexName='receiver_email_index',
                                             KeySchema=[dict(AttributeName='receiver_email', KeyType='HASH'),
                                                        dict(AttributeName='sender_email', KeyType='RANGE')],
                                             Projection=dict(ProjectionType='ALL'),
                                             ProvisionedThroughput=dict(ReadCapacityUnits=2, WriteCapacityUnits=2))],
-            'AttributeDefinitions': [dict(AttributeName='sender_email', AttributeType='S'),
-                                     dict(AttributeName='receiver_email', AttributeType='S')],
+            'AttributeDefinitions': [
+                dict(AttributeName='sender_email', AttributeType='S'),
+                dict(AttributeName='receiver_email', AttributeType='S')
+            ],
             'ProvisionedThroughput': dict(ReadCapacityUnits=2, WriteCapacityUnits=2)
         },
         {
             'TableName': 'ARTICLES',
+            'KeySchema': [dict(AttributeName='url', KeyType='HASH')],
+            'AttributeDefinitions': [dict(AttributeName='url', AttributeType='S')],
+            'ProvisionedThroughput': dict(ReadCapacityUnits=2, WriteCapacityUnits=2)
+        },
+        {
+            'TableName': 'SHARES',
             'KeySchema': [
-                dict(AttributeName='domain', KeyType='HASH'),
-                dict(AttributeName='id', KeyType='RANGE')
+                dict(AttributeName='email_key', KeyType='HASH'),
+                dict(AttributeName='url', KeyType='RANGE')
             ],
-            # TODO: read about proper range key usage (good for article table?)
+            'GlobalSecondaryIndexes': [dict(IndexName='receiver-email-index',
+                                            KeySchema=[dict(AttributeName='receiver_email', KeyType='HASH')],
+                                            Projection=dict(ProjectionType='ALL'),
+                                            ProvisionedThroughput=dict(ReadCapacityUnits=2, WriteCapacityUnits=2))],
             'AttributeDefinitions': [
-                dict(AttributeName='domain', AttributeType='S'),
-                dict(AttributeName='id', AttributeType='S')
+                dict(AttributeName='email_key', AttributeType='S'),
+                dict(AttributeName='url', AttributeType='S'),
+                dict(AttributeName='receiver_email', AttributeType='S')
             ],
             'ProvisionedThroughput': dict(ReadCapacityUnits=2, WriteCapacityUnits=2)
         }
@@ -78,7 +92,9 @@ class DefaultConfig:
     MAIL_PASSWORD = 'xcjhwfhrwedwquay' # provided by google for app-specific access
     SECURITY_EMAIL_SENDER = 'ian.f.t.wright@gmail.com'
 
-    REACT_STATIC_FOLDER = ''
+    REACT_BASE_URL = 'http://localhost:3000/'
+
+    MERCURY_KEY = 'zMDXaYRBloCYAPLexzRGhDAypnWgxl4q0Dq7qJKX'
 
 
 class LocalConfig(DefaultConfig):

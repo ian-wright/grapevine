@@ -11,6 +11,7 @@ export class Sidebar extends Component {
 	/*
 	required PROPS:
 		- onLogout function
+		- axios grapevine API instance
 	*/
 
 	constructor(props) {
@@ -40,6 +41,8 @@ export class Sidebar extends Component {
 			currentSelection: selectionBeforeFriend,
 		});
 	}
+
+
 
 	render() {
 		// the sidebar is made up of a mixture of react-router links (to defined paths),
@@ -123,7 +126,8 @@ export class Sidebar extends Component {
 		            	} 
 		            }}>
 		            <div>
-		            	<AddFriendForm />
+		            	<AddFriendForm 
+		            		ax={ this.props.ax }/>
 		           	</div>
 		        </ReactModal>
 	        </div>
