@@ -1,6 +1,6 @@
 # grapevine
 
-An Instapaper/Pocket-like app that's better at **sharing** content directly with particular friends or colleagues. Works well as a personal read-it-later tool too.
+An Instapaper/Pocket-like app that's better at **sharing content** directly with friends or colleagues. Works well as a personal read-it-later tool too.
 
 ## Tech stack:
 - Python Flask backend (user/friend management, content sharing API*)
