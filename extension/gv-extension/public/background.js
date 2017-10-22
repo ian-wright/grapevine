@@ -1,117 +1,188 @@
-
-
 // on startup event, attempt to validate the GV auth-token
 // maintain window-level state that flags whether or not auth-token is valid
 // if valid, request a set of friends from GV '/list-confirmed-friends' endpoint; hold that as window-level state too
+GVstate = {
+	url: 'http://localhost:5000',
+	token: null,
+	valid: null,
+	friends: null,
+	user: null
+}
+
 chrome.runtime.onStartup.addListener(function() {
-	GVvalid = true;
-	GVoptions = [
-		{
-	        first_name: 'Mike',
-	        last_name: 'Cancilla',
-	        email: 'mc@gmail.com'
-	    },
-	    {
-	        first_name: 'Flora',
-	        last_name: 'Devlin',
-	        email: 'fd@gmail.com'
-	    },
-	    {
-	        first_name: 'Piers',
-	        last_name: 'Bonifant',
-	        email: 'pb@gmail.com'
-	    }
-	];
-	// test for jQuery
-	if (axios) {
-		console.log("we have axios");
-	} else {
-		console.log("no bueno on the axios");
-	};
+	// validate the token, only fetch friends if token is valid
+	// otherwise, require a fresh login
+	validateToken(updateState, killState);
 });
 
 chrome.runtime.onInstalled.addListener(function() {
-	GVvalid = true;
-	GVoptions = [
-		{
-	        first_name: 'Mike',
-	        last_name: 'Cancilla',
-	        email: 'mc@gmail.com'
-	    },
-	    {
-	        first_name: 'Flora',
-	        last_name: 'Devlin',
-	        email: 'fd@gmail.com'
-	    },
-	    {
-	        first_name: 'Piers',
-	        last_name: 'Bonifant',
-	        email: 'pb@gmail.com'
-	    }
-	];
-	// test for jQuery
-	if (axios) {
-		console.log("we have axios");
-	} else {
-		console.log("no bueno on the axios");
-	};
+	validateToken(updateState, killState);
 });
 
-function getGVvalid() {
-	return GVvalid;
+const validateToken = (successCallback, failureCallback) => {
+	GVstate.token = localStorage.getItem('authToken');
+	if (GVstate.token == null) {
+        console.log("no token available...")
+		GVvalid = false;
+	} else {
+        console.log("validating token...")
+		axios({
+            method: 'get',
+            url: GVstate.url + '/validate-token',
+            headers: {'auth-token': GVstate.token}
+        }).then((response) => {
+            // response status 200 - OK
+            successCallback(response.data, function() {console.log("updated background state after token validation.")});
+        }).catch((error) => {
+            if (error.response) {
+            	failureCallback(error);
+            } else if (error.request) {
+                console.log(error.request);
+            } else {
+                console.log(error.message);
+            };
+        });
+	}
 }
 
+// set background state (with exception of token) after validation or login (optional callback)
+const updateState = (userData, cb) => {
+    console.log("updating background state...");
+	GVstate.valid = true;
+    GVstate.user = {
+        firstName: userData.first_name,
+        lastName: userData.last_name,
+        email: userData.email
+    };
+    if (cb) {
+        fetchFriends(cb); 
+    } else {
+        fetchFriends();
+    }
+}
+
+// fetch friends with an optional callback
+const fetchFriends = (cb) => {
+    console.log("fetching friends...");
+    // fake API call to populate the state friends for testing
+    GVstate.friends = [
+        {
+            first_name: 'Mike',
+            last_name: 'Cancilla',
+            email: 'mc@gmail.com'
+        },
+        {
+            first_name: 'Flora',
+            last_name: 'Devlin',
+            email: 'fd@gmail.com'
+        },
+        {
+            first_name: 'Piers',
+            last_name: 'Bonifant',
+            email: 'pb@gmail.com'
+        }
+    ];
+    if (cb) {
+        cb()
+    };
+
+	// axios({
+ //        method: 'get',
+ //        url: GVstate.url + '/list-confirmed-friends',
+ //        headers: {'auth-token': GVstate.token}
+ //    }).then((response) => {
+ //        // response status 200 - OK
+ //        GVstate.friends = response.data.confirmed_friends;
+ //    }).catch((error) => {
+ //    	console.log("couldn't fetch friend payload list");
+ //        if (error.response) {
+ //        	console.log(error.response);
+ //        } else if (error.request) {
+ //            console.log(error.request);
+ //        } else {
+ //            console.log(error.message);
+ //        }
+ //    });
+}
+
+// callback function for token validation failure
+const killState = (error) => {
+    console.log("kiling state...");
+    if (error) {
+        console.log(error.response);  
+    }
+    GVstate.valid = false;
+    GVstate.token = null;
+    GVstate.friends = null;
+    GVstate.user = null;
+}
 
 // background message listener
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
 
     if (request.action == "share") {
-
-    	share(request.url, request.receiverEmails, function() {
-    		// do stuff here
-    		// get activeTab URL
-    		sendResponse({msg: "handled share request"})
-    	});
+        // get activeTab URL
+        chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+            const activeURL = tabs[0].url;
+            share(activeURL, request.selection, function() {
+                sendResponse({msg: "handled share request"})
+            });
+        });
+        // indicate that the response to popup will be sent async
+        return true;
 
     } else if (request.action == "login") {
-    	login(request.email, request,password, function() {
-			// do stuff here
-    		sendResponse({msg: "handled login request"});
-    	});
- 
+        login(request.email, request.password, function() {
+            sendResponse({msg: "handled login request"})
+        });
+        return true;
 
     } else if (request.action == "logout") {
     	logout(function() {
-			// do stuff here
     		sendResponse({msg: "handled logout request"});
     	});
+        return true;
     }
 });
-
-const getActiveURL = () => {
-	let activeURL;
-	chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-		activeURL = tabs[0].url;
-	}
-	return activeURL;
-}
-
-
 
 // listen for 'share' message sent from popup
 // share the URL via GV '/send-share' endpoint
 const share = (url, receiverEmails, cb) => {
-	console.log("sharing!");
+    receiverEmails.forEach(function(email) {
+        console.log("sharing " + url + " to " + email);
+    });
 	cb();
 }
 
-
-// listen for 'login' message sent from popup
 // login and store a valid token via GV '/login' endpoint
-// send a success/failure message back to popup; if success, send the friend options to popup too
+// send a success/failure message back to popup; if success, send the friends to popup too
 const login = (email, password, cb) => {
-	console.log("logging in!");
-	cb();
+	console.log("logging in...");
+    axios({
+        method: 'post',
+        url: GVstate.url + '/login',
+        data: {
+            email: email,
+            password: password
+        }
+    }).then((response) => {
+        // response status 200 - OK
+        console.log("login response:", response.data);
+        // save the token
+        const userData = response.data.response.user;
+        const token = userData.authentication_token;
+        localStorage.setItem('authToken', token);
+        GVstate.token = token;
+        updateState(userData, cb)
+    }).catch((error) => {
+        if (error.response) {
+            console.log(error.response.data);
+        } else if (error.request) {
+            console.log(error.request);
+        } else {
+            console.log(error.message);
+        }
+    });
 }
 
 
@@ -127,86 +198,6 @@ const logout = (cb) => {
 
 
 
-
-
-
-// validateToken(token) {
-//         if (token == null) {
-//             // called before component is mounted
-//             this.state = {isTokenValid: false};
-//             console.log("isTokenValid:", this.state.isTokenValid);
-//         } else {
-//             const baseURL = this.props.APIbaseURL;
-//             axios({
-//                 method: 'get',
-//                 url: baseURL + '/validate-token',
-//                 headers: {'auth-token': token}
-//             }).then((response) => {
-//                 // response status 200 - OK
-//                 this.setState({
-//                     isTokenValid: true,
-//                     user: {
-//                         firstName: response.data.first_name,
-//                         lastName: response.data.last_name,
-//                         email: response.data.email
-//                     }
-//                 });
-//                 console.log("isTokenValid:", this.state.isTokenValid);
-//             }).catch((error) => {
-//                 if (error.response) {
-//                     // server side error
-//                     console.log("couldn't validate token with server");
-//                     this.setState({isTokenValid: false}); 
-//                     console.log("isTokenValid:", this.state.isTokenValid);
-//                 } else if (error.request) {
-//                     // client side error
-//                     console.log("problem sending token validation request on client side");
-//                     console.log(error.request);
-//                 } else {
-//                     console.log("error validating token");
-//                     console.log(error.message);
-//                 }
-//             });
-//         }
-//     }
-
-//     login(email, password) {
-//         console.log("logging in...")
-//         const baseURL = this.props.APIbaseURL;
-//         console.log("baseURL:", baseURL);
-//         axios({
-//             method: 'post',
-//             url: baseURL + '/login',
-//             data: {
-//                 email: email,
-//                 password: password
-//             }
-//         }).then((response) => {
-//             // response status 200 - OK
-//             console.log("response.data", response.data);
-//             // save the token
-//             const token = response.data.response.user.authentication_token;
-//             const user = response.data.response.user;
-//             localStorage.setItem('authToken', token);
-//             this.setState({
-//                 isTokenValid: true,
-//                 authToken: localStorage.getItem('authToken'),
-//                 user: {
-//                     firstName: user.first_name,
-//                     lastName: user.last_name,
-//                     email: user.email
-//                 }
-//             });
-//         }).catch((error) => {
-//             if (error.response) {
-//                 console.log(error.response.data);
-//             } else if (error.request) {
-//                 console.log(error.request);
-//             } else {
-//                 console.log(error.message);
-//             }
-//         });  
-//     }
 
 //     // add an API call to logout
 //     logout() {

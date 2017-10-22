@@ -39,6 +39,7 @@ class App extends Component {
     }
 
     validateToken(token) {
+        console.log("validating the token...");
         if (token == null) {
             // called before component is mounted
             this.state = {isTokenValid: false};
@@ -79,9 +80,8 @@ class App extends Component {
     }
 
     login(email, password) {
-        console.log("logging in...")
+        console.log("attempting to log in...")
         const baseURL = this.props.APIbaseURL;
-        console.log("baseURL:", baseURL);
         axios({
             method: 'post',
             url: baseURL + '/login',
@@ -126,12 +126,14 @@ class App extends Component {
         });
     }
 
+    // this is a general purpose axios method that defaults to the grapevine API baseURL,
+    // and allows application to specify callbacks for success and failure responses.
     // ES6 object destructuring to simulate optional named params!
-    apiAxios({url=null, method=null, data=null, cb=null, errCb=null}) {
+    apiAxios({endpoint=null, method=null, data=null, cb=null, errCb=null}) {
         const baseURL = this.props.APIbaseURL;
         axios({
             method: method,
-            baseURL: baseURL + url,
+            url: baseURL + endpoint,
             headers: {'auth-token': this.state.authToken},
             data: data
         }).then((response) => {

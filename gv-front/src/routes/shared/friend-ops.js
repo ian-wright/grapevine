@@ -28,7 +28,7 @@ export class AddFriendForm extends Component {
 		console.log("adding a friend...");
 		const ax = this.props.ax;
 		ax({
-			url: '/add-friend',
+			endpoint: '/add-friend',
 			method: 'POST',
 			data: {target_email: this.state.friendEmail},
 			cb: ((response) => {
@@ -65,7 +65,7 @@ export class AddFriendForm extends Component {
 			<div className="addFriendForm">
 				{
 					this.state.message === "pending"
-					? (<div>loading component</div>)
+					? (<div>cool loading animation...</div>)
 					: (<div>
 						<form>
 							<input

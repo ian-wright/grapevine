@@ -8,14 +8,18 @@ declare var chrome: any;
 class Extension extends Component {
 
     constructor(props) {
+        console.log("constructing extension component...");
         super(props);
-        // this is where the popup asks background.js for the current option set, then sets state
-        chrome.runtime.getBackgroundPage(function(bg) {
-            console.log("constructing extension component...");
-            console.log(bg.GVvalid, bg.GVoptions);
-        });
+
+        this.toggleOption = this.toggleOption.bind(this);
+        this.share = this.share.bind(this);
+        this.mirrorBackgroundState = this.mirrorBackgroundState.bind(this);
+
+        chrome.runtime.getBackgroundPage(this.mirrorBackgroundState);
+
         this.state = {
-            options: [
+            friends2: null,
+            friends: [
                 {
                     first_name: 'Mike',
                     last_name: 'Cancilla',
@@ -32,17 +36,22 @@ class Extension extends Component {
                     email: 'pb@gmail.com'
                 }
             ],
-            selection: [],
-            isLoggedIn: null
+            valid: null,
+            selection: []
         };
-
-        this.toggleOption = this.toggleOption.bind(this);
-        this.share = this.share.bind(this);
     }
 
-    componentWillMount() {
-        // get logged in status from background; setState
-        // render selectables if logged in, login form if not
+    mirrorBackgroundState(bg) {
+        console.log("background state:", bg.GVstate);
+            // intial state just mirrors that of the background page state
+
+        this.setState({
+            friends2: bg.GVstate.friends,
+            valid: bg.GVstate.valid,
+            user: bg.GVstate.user
+        });
+
+        console.log("extension state:", this.state);
     }
 
     toggleOption(email) {
@@ -76,7 +85,7 @@ class Extension extends Component {
 
     render() {
         const selection = this.state.selection;
-        const renderedOptions = this.state.options.map(meta => 
+        const renderedFriends = this.state.friends.map(meta => 
             <Option
                 key={meta.email}
                 email={meta.email}
@@ -86,16 +95,33 @@ class Extension extends Component {
                 onClickHandler={this.toggleOption}/>
         );
 
-        return (
-            <div className="Extension">
-                {renderedOptions}
-                <button
-                    type="button"
-                    onClick={this.share}>
-                    Share
-                </button>
-            </div>
-        );
+        if (this.state.valid) {
+            return (
+                <div className="Extension">
+                    {renderedFriends}
+                    <br/>
+                        <Option
+                            email={this.state.user.email}
+                            firstName="save"
+                            lastName="for myself."
+                            isSelected={ selection.indexOf(this.state.user.email) !== -1 }
+                            onClickHandler={this.toggleOption}/>
+                    <br/>
+                    <button
+                        type="button"
+                        onClick={this.share}>
+                        Share
+                    </button>
+                </div>
+            );
+        } else {
+            return (
+                <div className="Extension">
+                    <Login 
+                        mirrorBackgroundState={this.mirrorBackgroundState}/>
+                </div>
+            );
+        }
     }
 }
 
@@ -134,5 +160,72 @@ const IsSelectedIcon = props => (
     : <img src={unCheckedIcon} alt="unchecked"/>}
     </div>
 )
+
+
+class Login extends Component {
+    constructor(props) {
+        super(props);
+        this.state = {
+            email: '',
+            password: ''
+        };
+
+        this.handleCredChange = this.handleCredChange.bind(this);
+        this.submitForm = this.submitForm.bind(this);
+    }
+
+    handleCredChange(e) {
+        const value = e.target.value;
+        const name = e.target.name;
+
+        this.setState({
+            [name]: value
+        });
+    }
+
+    submitForm(e){
+        console.log("logging in from extension");
+        const mirrorBackgroundState = this.props.mirrorBackgroundState;
+        chrome.runtime.sendMessage({
+            action: "login",
+            email: this.state.email,
+            password: this.state.password
+        }, function(response) {
+            // TODO - for some reason I'm not getting the expected response (when I pass the sendResponse
+            // function down a few levels as a callback) - seems to be returning too quickly
+
+            // can either send the values right in the response
+            console.log("response from background", response);
+            chrome.runtime.getBackgroundPage(mirrorBackgroundState);
+        });
+    }
+
+    render() {
+        return (
+                <form>
+                    <input
+                        name="email"
+                        type="text"
+                        placeholder=" Email"
+                        value={ this.state.email }
+                        onChange={ this.handleCredChange } />
+                    <br />
+                    <input
+                        name="password"
+                        type="password"
+                        placeholder=" Password"
+                        value={ this.state.password }
+                        onChange={ this.handleCredChange } />
+                    <br />
+                    <button
+                        type="button"
+                        name="submit"
+                        onClick={ this.submitForm }>
+                        Login
+                    </button>
+                </form>
+        );
+      }
+}
 
 export default Extension;
