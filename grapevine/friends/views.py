@@ -143,14 +143,22 @@ def list_pending_requests():
 
     :return:
     """
-    pass
+    raise NotImplementedError
 
 
-@friends_bp.route('/list-confirmed-friends', methods=['POST'])
+@friends_bp.route('/list-confirmed-friends', methods=['GET'])
 @auth_token_required
 def list_confirmed_friends():
     """
-
-    :return:
+    Fetches a list of user payload objects for current user
+    :return: {'confirmed_friends: [{'first_name': 'Mike', 'last_name': 'Smith', 'email': 'ms@email.com'}, ...]}
+        (returns an empty list if no confirmed friends
     """
-    pass
+    conn = get_connection(current_app)
+    _friends = conn['_friends']
+    confirmed_friends = _friends.list_confirmed_friends_payload(current_user.email)
+    response = {'confirmed_friends': confirmed_friends}
+    status = 200 if isinstance(confirmed_friends, list) else 400
+    return make_response(jsonify(response), status)
+
+

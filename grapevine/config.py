@@ -46,14 +46,14 @@ class DefaultConfig:
                 dict(AttributeName='email_key', KeyType='HASH'),
                 dict(AttributeName='url', KeyType='RANGE')
             ],
-            'GlobalSecondaryIndexes': [dict(IndexName='receiver-email-index',
-                                            KeySchema=[dict(AttributeName='receiver_email', KeyType='HASH')],
-                                            Projection=dict(ProjectionType='ALL'),
-                                            ProvisionedThroughput=dict(ReadCapacityUnits=2, WriteCapacityUnits=2))],
+            # 'GlobalSecondaryIndexes': [dict(IndexName='receiver_email_index',
+            #                                 KeySchema=[dict(AttributeName='receiver_email', KeyType='HASH')],
+            #                                 Projection=dict(ProjectionType='ALL'),
+            #                                 ProvisionedThroughput=dict(ReadCapacityUnits=2, WriteCapacityUnits=2))],
             'AttributeDefinitions': [
                 dict(AttributeName='email_key', AttributeType='S'),
-                dict(AttributeName='url', AttributeType='S'),
-                dict(AttributeName='receiver_email', AttributeType='S')
+                dict(AttributeName='url', AttributeType='S')
+                # dict(AttributeName='receiver_email', AttributeType='S')
             ],
             'ProvisionedThroughput': dict(ReadCapacityUnits=2, WriteCapacityUnits=2)
         }
@@ -80,6 +80,7 @@ class DefaultConfig:
     EMAIL_SUBJECT_FRIEND_CONFIRM = "You're now connected with {} on Grapevine"
     EMAIL_SUBJECT_FRIEND_REJECT = "{} doesn't seem to like you"
     EMAIL_SUBJECT_APP_REQUEST = "Sign up for Grapevine to share with {}"
+    EMAIL_SUBJECT_NEW_SHARE = "Grape from {}: {}"
 
     WTF_CSRF_ENABLED = False
     SECURITY_TOKEN_AUTHENTICATION_HEADER = 'auth-token'

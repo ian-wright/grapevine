@@ -31,14 +31,17 @@ if __name__ == "__main__":
         app = create_app('prod')
 
     with app.app_context():
-        _dyn, _db, _friends, _userdata = get_connection(app)
+        conn = get_connection(app)
+        _db = conn['_db']
+        _users = conn['_users']
+        _friends = conn['_friends']
 
         if args['c'] == 'user':
             if args['a'] == 'create':
                 # create new user
                 # '{"email":"ian.f.t.wright@gmail.com","password":"password","first_name":"ian","last_name":"wright"}'
                 pdict['password'] = hash_password(pdict['password'])
-                new_user = _userdata.create_user(**pdict)
+                new_user = _users.create_user(**pdict)
                 if new_user:
                     print("created new user: {} {}".format(new_user.first_name, new_user.last_name))
                 else:
@@ -55,9 +58,9 @@ if __name__ == "__main__":
             elif args['a'] == 'confirm':
                 # confirm new user
                 # '{"email": "some_email"}'
-                user_to_confirm = _userdata.get_user(pdict['email'])
+                user_to_confirm = _users.get_user(pdict['email'])
                 user_to_confirm.confirmed_at = datetime.datetime.utcnow()
-                if _userdata.put(user_to_confirm):
+                if _users.put(user_to_confirm):
                     print("confirmed user: {}".format(pdict['email']))
                 else:
                     print("FAIL: couldn't confirm user: {}".format(pdict['email']))

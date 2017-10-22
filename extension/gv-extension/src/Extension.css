@@ -1,0 +1,17 @@
+.Extension {
+    width: 350px;
+}
+
+.Option-container {
+    height: 50px;
+}
+
+.Option-isSelected-true {
+    background-color: MediumPurple;
+}
+
+.Option-isSelected-false {
+    background-color: WhiteSmoke;
+}
+
+

@@ -1,5 +1,5 @@
-from flask import current_app, url_for
-from flask_security.utils import send_mail, config_value
+from flask import current_app
+from flask_security.utils import send_mail
 import datetime
 
 
@@ -114,7 +114,7 @@ class FriendManager:
             )
             return deleted_friendship
 
-    def list_pending_receieved_requests_payload(self, receiver_email):
+    def list_pending_received_requests_payload(self, receiver_email):
         """
         Given the logged in users email id, get a list of {first_name, last_name, email}
         dict objects for each RECEIVED pending friend request.

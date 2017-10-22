@@ -153,8 +153,8 @@ class BaseTable(object):
             new_item[k] = self.convert_attr_to_dynamo(v)
 
         if self.table.put_item(Item=new_item):
-            print("added obj:", obj, vars(obj))
-            return True
+            print("added obj:", obj)
+            return obj
 
     def scan(self, **kwargs):
         """
@@ -464,10 +464,36 @@ class ShareTable(BaseTable):
 
     def delete_share(self, sender_email, receiver_email, url):
             deleted_article = self.table.delete_item(
-                Key={'url': url},
+                Key={
+                    'email_key': sender_email + ',' + receiver_email,
+                    'url': url
+                },
                 ReturnValues='ALL_OLD'
             )
             if 'Attributes' in deleted_article:
                 return self.response_to_object(deleted_article, Article)
 
-    # def list_re
+    def list_received_shares(self, sender_email, receiver_email):
+        shares = []
+
+        response_chunk = self.table.query(
+            ExpressionAttributeValues={':ek': sender_email + ',' + receiver_email},
+            KeyConditionExpression='email_key = :se'
+        )
+        shares += [self.response_to_object(item, Share) for item in response_chunk.get('Items', [])]
+
+        # paginated results case
+        if 'LastEvaluatedKey' in response_chunk:
+            more_to_fetch = True
+            while more_to_fetch:
+                pagination_key = response_chunk['LastEvaluatedKey']
+                response_chunk = self.table.query(
+                    ExpressionAttributeValues={':ek': sender_email + ',' + receiver_email},
+                    KeyConditionExpression='email_key = :se',
+                    ExclusiveStartKey=pagination_key
+                )
+                shares += [self.response_to_object(item, Share) for item in response_chunk.get('Items', [])]
+                if 'LastEvaluatedKey' not in response_chunk:
+                    more_to_fetch = False
+
+        return shares

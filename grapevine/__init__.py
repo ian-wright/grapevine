@@ -2,14 +2,14 @@
 # TODO: integrate TravisCI
 
 import grapevine.config as cfg
-from flask import Flask, send_from_directory
+from flask import Flask
 from flask_cors import CORS
 from grapevine.dynamo.orm import DynamoConn
 from grapevine.security.models import User, Role, DynamoUserDatastore
 from grapevine.main.forms import RegisterFormWithNames, ConfirmRegisterFormWithNames
 from grapevine.main.views import main_bp
 from grapevine.friends.views import friends_bp
-import os
+from grapevine.shares.views import shares_bp
 
 
 def create_app(env):
@@ -50,6 +50,7 @@ def create_app(env):
     # (flask-security blueprint is registered at extension initialization)
     app.register_blueprint(main_bp)
     app.register_blueprint(friends_bp)
+    app.register_blueprint(shares_bp)
 
     # serve the React app assets
     # @app.route('/', defaults={'path': ''})

@@ -243,3 +243,20 @@ class TestShareModels:
             self._db.article_table.delete_article('url1')
             out_article = self._db.article_table.get_article('url1')
             assert out_article == None
+
+    def test_create_retrieve_share(self):
+        with self.app.app_context():
+            self._shares.generate_share(
+                sender_email='ian.f.t.wright+1@gmail.com',
+                receiver_email='ian.f.t.wright+2@gmail.com',
+                url='https://techcrunch.com/2017/10/18/cnn-gets-a-first-of-its-kind-waiver-to-fly-drones-over-crowds/'
+            )
+            retrieved_share = self._db.share_table.get_share(
+                sender_email='ian.f.t.wright+1@gmail.com',
+                receiver_email='ian.f.t.wright+2@gmail.com',
+                url='https://techcrunch.com/2017/10/18/cnn-gets-a-first-of-its-kind-waiver-to-fly-drones-over-crowds/'
+            )
+            retrieved_article=self._db.article_table.get_article(
+                'https://techcrunch.com/2017/10/18/cnn-gets-a-first-of-its-kind-waiver-to-fly-drones-over-crowds/'
+            )
+            assert retrieved_share.url == retrieved_article.url

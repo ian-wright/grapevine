@@ -27,7 +27,10 @@ class User(UserMixin):
         self.password = args.get('password')
         self.first_name = args.get('first_name')
         self.last_name = args.get('last_name')
+
         self.roles = args.get('roles', [])
+        # is account disabled or not
+        self.active = args.get('active', True)
 
         # flask-security needs a unique user ID, so email is used again
         self.id = args['email']
