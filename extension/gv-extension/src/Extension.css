@@ -2,15 +2,15 @@
     width: 350px;
 }
 
-.Option-container {
+.Friend-container {
     height: 50px;
 }
 
-.Option-isSelected-true {
+.Friend-isSelected-true {
     background-color: MediumPurple;
 }
 
-.Option-isSelected-false {
+.Friend-isSelected-false {
     background-color: WhiteSmoke;
 }
 

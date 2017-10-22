@@ -11,7 +11,7 @@ class Extension extends Component {
         console.log("constructing extension component...");
         super(props);
 
-        this.toggleOption = this.toggleOption.bind(this);
+        this.toggleFriend = this.toggleFriend.bind(this);
         this.share = this.share.bind(this);
         this.mirrorBackgroundState = this.mirrorBackgroundState.bind(this);
 
@@ -54,7 +54,7 @@ class Extension extends Component {
         console.log("extension state:", this.state);
     }
 
-    toggleOption(email) {
+    toggleFriend(email) {
         let oldSelection = this.state.selection;
         const index = oldSelection.indexOf(email);
         let newSelection = oldSelection;
@@ -86,13 +86,13 @@ class Extension extends Component {
     render() {
         const selection = this.state.selection;
         const renderedFriends = this.state.friends.map(meta => 
-            <Option
+            <Friend
                 key={meta.email}
                 email={meta.email}
                 firstName={meta.first_name}
                 lastName={meta.last_name}
                 isSelected={ selection.indexOf(meta.email) !== -1 }
-                onClickHandler={this.toggleOption}/>
+                onClickHandler={this.toggleFriend}/>
         );
 
         if (this.state.valid) {
@@ -100,12 +100,12 @@ class Extension extends Component {
                 <div className="Extension">
                     {renderedFriends}
                     <br/>
-                        <Option
+                        <Friend
                             email={this.state.user.email}
                             firstName="save"
                             lastName="for myself."
                             isSelected={ selection.indexOf(this.state.user.email) !== -1 }
-                            onClickHandler={this.toggleOption}/>
+                            onClickHandler={this.toggleFriend}/>
                     <br/>
                     <button
                         type="button"
@@ -126,7 +126,7 @@ class Extension extends Component {
 }
 
 
-class Option extends Component {
+class Friend extends Component {
 
     constructor(props) {
         super(props);
@@ -140,9 +140,9 @@ class Option extends Component {
     render() {
         return (
             <div
-                className={ "Option-container Option-isSelected-" + this.props.isSelected }
+                className={ "Friend-container Friend-isSelected-" + this.props.isSelected }
                 onClick={this.handleClick}>
-                <div className="Option-name">
+                <div className="Friend-name">
                     { this.props.firstName + ' ' + this.props.lastName }
                 </div>
                 <IsSelectedIcon
@@ -154,7 +154,7 @@ class Option extends Component {
 
 
 const IsSelectedIcon = props => (
-    <div className="Option-isSelectedIcon-container">
+    <div className="Friend-isSelectedIcon-container">
         {props.isSelected
     ? <img src={checkedIcon} alt="checked"/>
     : <img src={unCheckedIcon} alt="unchecked"/>}
