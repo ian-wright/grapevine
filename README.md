@@ -9,4 +9,4 @@ An Instapaper/Pocket-like tool with an emphasis on sharing and discussing conten
 - Browser plugin
 - Hosted on AWS ElasticBeanstalk + S3
 
-*credit to Postlight Labs' wicked [Mercury article parsing API](https://mercury.postlight.com/web-parser/)
+*credit to Postlight Labs' incredible [Mercury article parsing API](https://mercury.postlight.com/web-parser/)
